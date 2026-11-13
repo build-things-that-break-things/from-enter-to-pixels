@@ -28,4 +28,6 @@ The root `index.html` is the landing page that links the topics. `.nojekyll` tel
 
 To turn it on: in the repository, open **Settings → Pages → Build and deployment → Source: Deploy from a branch**, choose **`main`** and **`/ (root)`**, then **Save**. The site appears at the URL above within a minute or two, and updates on every push to `main`. On a free account, Pages requires the repository to be public.
 
-To add a topic: create a new folder with its own `index.html` and `README.md`, add a card to the root `index.html`, and add a row to the table above.
+To add a topic: create a new folder with its own `index.html` and `README.md`, add a card to the root `index.html`, and add a row to the table above. Copy the three icon `<link>` lines from an existing topic page; they point to `../favicon.svg`.
+
+The site icon is `favicon.svg`, a pixel-art Enter key, with `favicon-32.png` and `apple-touch-icon.png` (180×180) as fallbacks for browsers and home screens that don't use SVG. To change it, edit the SVG and re-export the PNGs, for example on macOS: `qlmanage -t -s 512 -o /tmp favicon.svg`, then `sips -z 32 32` and `sips -z 180 180` on the result.
