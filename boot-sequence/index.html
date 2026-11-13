@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boot Sequence</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one shared cursor (group + step) drives interchangeable views. Header, grouped view tabs, a sticky rail (group picker, steps, controls), then diagram left and notes right; stacks on narrow screens.
+   Stage colours (s1–s7) mark the seven boot stages; item colours (k1–k5) tell systems apart within a group. */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --surface-2:#E3E9EE; --ink:#122130; --muted:#55687B; --line:#C6D1DB; --accent:#0B6A8E; --warn:#B4231B; --good:#2E7D32;
+  --k1:#2155D0; --k2:#BA6608; --k3:#08826F; --k4:#C02467; --k5:#7445D6;
+  --s1:#B4231B; --s2:#BA6608; --s3:#8A7A00; --s4:#4A8510; --s5:#08826F; --s6:#2155D0; --s7:#7445D6;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Helvetica Neue",Arial,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4; --warn:#FF7A70; --good:#7BD389;
+  --k1:#7199FF; --k2:#F0A447; --k3:#3BC6AE; --k4:#F06BA7; --k5:#A88AF2;
+  --s1:#FF7A70; --s2:#F0A447; --s3:#E3CF4A; --s4:#8DCB4F; --s5:#3BC6AE; --s6:#7199FF; --s7:#A88AF2; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4; --warn:#FF7A70; --good:#7BD389;
+  --k1:#7199FF; --k2:#F0A447; --k3:#3BC6AE; --k4:#F06BA7; --k5:#A88AF2;
+  --s1:#FF7A70; --s2:#F0A447; --s3:#E3CF4A; --s4:#8DCB4F; --s5:#3BC6AE; --s6:#7199FF; --s7:#A88AF2; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+code{font-family:var(--font-mono);font-size:.92em}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{padding-block:28px 10px}
+.eyebrow{margin:0 0 6px;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(30px,4.4vw,52px);line-height:1.02;margin:0;letter-spacing:-.02em}
+h1 .pw{display:inline-block;width:.42em;height:.42em;border:.07em solid var(--accent);border-top-color:transparent;border-radius:50%;margin-left:.16em;position:relative;vertical-align:.02em}
+h1 .pw::before{content:"";position:absolute;left:50%;top:-.14em;width:.07em;height:.26em;margin-left:-.035em;background:var(--accent);border-radius:.04em}
+.lede{margin:12px 0 0;color:var(--muted);max-width:72ch}
+
+.views{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;padding-block:14px 8px}
+.views > .tab{margin-top:17px}
+.tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:9px 14px;cursor:pointer;text-align:left;min-width:140px;flex:1 1 140px;max-width:250px}
+.tab b{font-family:var(--font-display);font-weight:700;font-size:16px}
+.tab span{font-size:12.5px;color:var(--muted)}
+.tab[aria-selected="true"]{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink)}
+.tab[disabled]{cursor:not-allowed;border-style:dashed;opacity:.65}
+.tab-group{position:relative;display:flex;flex-wrap:wrap;gap:8px;flex:5 1 640px;min-width:0;border:1.5px solid var(--line);border-radius:14px;padding:15.5px 8px 8px}
+.tab-group .tab{flex:1 1 120px}
+.tg-label{position:absolute;top:-9px;left:14px;padding:0 6px;background:var(--bg);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tab-group:has(.tab[aria-selected="true"]){border-color:var(--ink)}
+.tab-group:has(.tab[aria-selected="true"]) .tg-label{color:var(--ink);font-weight:600}
+.viewdesc{color:var(--muted);font-size:14px;margin-block:2px 12px}
+
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-block:1px solid var(--line)}
+.rail-in{display:flex;gap:10px 14px;align-items:center;padding-block:10px;flex-wrap:wrap}
+.groups{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.gbtn{border:0;background:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:13.5px;display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.gbtn small{font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+.gbtn.on{background:var(--ink);color:var(--bg)}
+.gbtn.on small{color:var(--bg);opacity:.75}
+.steps{display:flex;gap:5px;flex-wrap:wrap;flex:1 1 380px;min-width:0}
+.sbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13px;white-space:nowrap}
+.sbtn i{font-style:normal;font-family:var(--font-mono);color:var(--muted);margin-right:5px}
+.sbtn.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));font-weight:600}
+.sbtn.on i{color:var(--accent)}
+.ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;height:36px;min-width:36px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px}
+.btn:hover{border-color:var(--ink)}
+#anim{min-width:150px}
+#anim[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#auto{position:relative;overflow:hidden}
+#auto.on{border-color:var(--ink);font-weight:600}
+.adv-bar{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--accent)}
+#auto.on .adv-bar{animation:adv var(--adv,12s) linear forwards}
+@keyframes adv{to{width:100%}}
+.anim-paused *:not(.adv-bar){animation-play-state:paused!important}
+.counter{font-family:var(--font-mono);font-size:12.5px;color:var(--muted);min-width:96px;text-align:center;font-variant-numeric:tabular-nums}
+
+.work{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding-block:18px 40px;align-items:start}
+@media (max-width:1100px){.work{grid-template-columns:minmax(0,1fr)}}
+.viz{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.viz-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.viz-head h2{font-family:var(--font-display);font-size:19px;margin:0;font-weight:700;text-wrap:balance}
+.viz-head .hint{font-size:13px;color:var(--muted)}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.scroll-x > svg{display:block;min-width:720px;width:100%;height:auto}
+h3.sub{font-family:var(--font-display);font-size:17px;margin:22px 0 4px}
+p.subtext{margin:0 0 10px;color:var(--muted);font-size:14px}
+
+/* svg shared */
+.link{stroke:var(--line);stroke-width:2;fill:none}
+.link.hot{stroke:var(--c);stroke-width:3}
+.trail{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;opacity:.22}
+.trail.act{opacity:1}
+.pkt{fill:var(--c);stroke:var(--surface);stroke-width:2}
+.pill rect{fill:var(--ink)}
+.pill text{fill:var(--bg);font-family:var(--font-mono);font-size:11px}
+.lane-h{fill:var(--ink);font-weight:600;font-size:12.5px;font-family:var(--font-body)}
+.lane-s{fill:var(--muted);font-size:10px;font-family:var(--font-mono)}
+.lifeline{stroke:var(--line);stroke-dasharray:3 4}
+.arrow{stroke:var(--c);stroke-width:1.8}
+.arrowhead{fill:var(--c)}
+.alabel{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.snote rect{fill:color-mix(in srgb,var(--c) 14%,var(--surface));stroke:var(--c)}
+.snote text{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px}
+
+/* graphs (deep internals) */
+.frame{fill:none;stroke:var(--line);stroke-dasharray:4 4}
+.frame-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.link-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px}
+.node rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.node .t{fill:var(--ink);font-weight:600;font-size:13.5px;font-family:var(--font-body)}
+.node .s{fill:var(--muted);font-size:10.5px;font-family:var(--font-mono)}
+.node.dim{opacity:.45}
+.node.on rect{stroke:var(--c);stroke-width:2.5;fill:color-mix(in srgb,var(--c) 10%,var(--surface))}
+.log{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px}
+.log li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:baseline;padding:5px 8px;border-radius:6px;font-size:13.5px}
+.log li .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.log li .who{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.log li.act{background:color-mix(in srgb,var(--c) 12%,transparent)}
+.log li.note{color:var(--muted);font-style:italic}
+
+/* high level */
+.station{cursor:pointer}
+.station:focus-visible{outline:none}
+.station:focus-visible .st-bg{stroke:var(--accent);stroke-width:4}
+.st-bg{fill:var(--surface);stroke:var(--line);stroke-width:2}
+.station.past .st-bg{fill:color-mix(in srgb,var(--c) 10%,var(--surface));stroke:var(--c)}
+.station.cur .st-bg{fill:color-mix(in srgb,var(--c) 22%,var(--surface));stroke:var(--c);stroke-width:3.5}
+.station.future{opacity:.5}
+.station.fail .st-bg{stroke:var(--warn);stroke-width:4;stroke-dasharray:6 4}
+.ico{fill:none;stroke:var(--c);stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+.ico .fillc{fill:var(--c);stroke:none}
+.st-n{fill:var(--c);font-family:var(--font-mono);font-size:12px;font-weight:600}
+.st-l{fill:var(--ink);font-family:var(--font-display);font-size:14.5px;font-weight:700}
+.st-s{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px}
+.hl-summary{font-size:17px;line-height:1.5;margin:0 0 6px;max-width:72ch}
+.trouble{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px}
+.tbtn{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:13.5px;line-height:1.35}
+.tbtn:hover{border-color:var(--ink)}
+.tbtn.on{border-color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn);background:color-mix(in srgb,var(--warn) 7%,var(--surface))}
+.tres{margin-top:10px;border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 7%,transparent);padding:10px 12px;border-radius:0 8px 8px 0}
+.tres b{color:var(--warn)}
+
+/* side by side */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px}
+.pcard{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:12px;padding:10px 12px 12px;min-width:0;display:flex;flex-direction:column}
+.pc-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.pc-head b{font-family:var(--font-display);font-size:17px}
+.pc-head span{font-family:var(--font-mono);font-size:11px;color:var(--c)}
+.pc-svg{overflow-x:auto}
+.pc-svg svg{display:block;width:100%;height:auto}
+.pc-text{font-size:13.5px;margin:8px 0 0}
+
+/* simulator */
+.sim{display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.sim{grid-template-columns:minmax(0,1fr)}}
+.sim fieldset{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 8px}
+.sim legend{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 4px}
+.sim label{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:4px 0}
+.sim select{width:100%;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:5px 6px;font-size:13.5px}
+.sim input[disabled]+span{color:var(--muted)}
+.trace{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.trace li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px;opacity:.25;transition:opacity .3s,border-color .3s}
+.trace li.shown{opacity:1}
+.trace li.now{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.trace li .m{font-family:var(--font-mono);font-weight:600;text-align:center;border-radius:5px;padding:1px 0}
+.trace li.ok .m{color:var(--good)}
+.trace li.skip .m{color:var(--warn)}
+.trace li.info .m{color:var(--muted)}
+.outcome{margin-top:12px;border-radius:10px;padding:12px 14px;font-size:15px;border:2px solid var(--good);background:color-mix(in srgb,var(--good) 8%,transparent);opacity:.3;transition:opacity .4s}
+.outcome.err{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.outcome.shown{opacity:1}
+.outcome b{font-family:var(--font-display);font-size:18px}
+
+/* disk layout */
+.blegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.blegend span{display:inline-flex;align-items:center;gap:6px}
+.blegend i{display:inline-block;width:18px;height:12px;border-radius:3px;border:1.5px solid}
+.barlbl{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin:10px 0 4px}
+.brow{display:flex;flex-wrap:wrap;gap:3px}
+.bf{flex:1 1 0;min-width:80px;border-radius:6px;padding:7px 8px;text-align:left;font-family:var(--font-mono);font-size:11.5px;display:flex;flex-direction:column;gap:1px;cursor:pointer;border:1.5px solid var(--line);background:var(--surface-2);transition:transform .2s,box-shadow .2s;overflow-wrap:anywhere}
+.bf small{font-size:10px;color:var(--muted)}
+.bf.code,.blegend i.code{border-color:var(--k1);background:color-mix(in srgb,var(--k1) 14%,var(--surface))}
+.bf.table,.blegend i.table{border-color:var(--k2);background:color-mix(in srgb,var(--k2) 14%,var(--surface))}
+.bf.sig,.blegend i.sig{border-color:var(--k4);background:color-mix(in srgb,var(--k4) 14%,var(--surface))}
+.bf.meta,.blegend i.meta{border-color:var(--muted);background:var(--surface-2)}
+.bf.data,.blegend i.data{border-color:var(--k3);background:color-mix(in srgb,var(--k3) 14%,var(--surface))}
+.bf.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent);transform:translateY(-2px)}
+.bdetail{margin-top:14px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);padding:10px 12px;border-radius:0 8px 8px 0;min-height:7em}
+.bdetail b{font-family:var(--font-mono)}
+.bdetail .bsz{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.bdetail p{margin:6px 0 0}
+.tree{list-style:none;margin:0;padding:0;font-family:var(--font-mono);font-size:13px}
+.tree li{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:4px 14px;padding:4px 8px;border-radius:6px;cursor:pointer;align-items:baseline}
+.tree li .p{white-space:pre}
+.tree li .d{font-family:var(--font-body);font-size:12.5px;color:var(--muted)}
+.tree li.on{background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:inset 3px 0 0 var(--accent)}
+.tree li.dir .p{color:var(--muted)}
+.nvram{margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2);font-family:var(--font-mono);font-size:12.5px;white-space:pre;overflow-x:auto}
+
+/* timeline */
+.tl-row{display:grid;grid-template-columns:150px minmax(0,1fr) 84px;gap:10px;align-items:center;margin-bottom:10px}
+.tl-row .nm{font-family:var(--font-display);font-weight:700;font-size:15px}
+.tl-row .nm small{display:block;font-family:var(--font-mono);font-weight:400;font-size:10.5px;color:var(--muted)}
+.tl-bar{position:relative;display:flex;height:34px;border-radius:7px;overflow:hidden;background:var(--surface-2)}
+.tl-seg{height:100%;background:var(--sc);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10.5px;color:var(--bg);font-weight:600;overflow:hidden;white-space:nowrap;min-width:2px;border-right:1px solid var(--surface)}
+.tl-sweep{position:absolute;top:0;bottom:0;width:3px;background:var(--ink);opacity:.8;animation:sweep 7s linear infinite;left:0}
+@keyframes sweep{from{left:0}to{left:calc(100% - 3px)}}
+.tl-row .tot{font-family:var(--font-mono);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+.tl-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin:4px 0 12px}
+.tl-legend span{display:inline-flex;align-items:center;gap:6px}
+.tl-legend i{width:12px;height:12px;border-radius:3px;background:var(--sc)}
+.seg-toggle{display:inline-flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:8px;margin-bottom:10px}
+.seg-toggle button{border:0;background:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:13px}
+.seg-toggle button.on{background:var(--ink);color:var(--bg)}
+
+/* compare */
+.ctable{border-collapse:separate;border-spacing:0;width:100%;min-width:720px;font-size:13.5px}
+.ctable th,.ctable td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.ctable thead th{position:sticky;top:0;background:var(--surface);font-family:var(--font-display);font-size:16px;border-bottom:3px solid var(--c)}
+.ctable thead th small{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--c);font-weight:500}
+.ctable tbody th{font-weight:600;color:var(--muted);width:160px;font-size:12.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+.verdict{margin-top:14px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:10px 12px;border-radius:0 8px 8px 0}
+
+/* notes */
+.notes{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);max-height:calc(100vh - 96px);overflow:auto}
+@media (max-width:1100px){.notes{position:static;max-height:none}}
+.notes .kicker{font-family:var(--font-mono);font-size:12px;color:var(--c);letter-spacing:.05em;text-transform:uppercase;margin:0}
+.notes h2{font-family:var(--font-display);font-size:25px;line-height:1.12;margin:4px 0 8px;text-wrap:balance}
+.notes .sum{font-size:16px;margin:0 0 12px}
+.notes p{margin:0 0 10px}
+.notes h3{font-size:12px;font-family:var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;font-weight:500}
+.notes ol,.notes ul{margin:0 0 10px;padding-left:20px}
+.notes li{margin-bottom:4px}
+.say{border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 8%,transparent);padding:10px 12px;border-radius:0 8px 8px 0;margin:14px 0}
+.say h3{margin-top:0}
+.say p{margin:0;font-size:15px}
+.facts{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 14px}
+.chip{font-family:var(--font-mono);font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--surface-2)}
+
+footer{color:var(--muted);font-size:12.5px;padding-block:0 32px}
+footer p{max-width:90ch;margin:0 0 6px}
+@media (max-width:720px){.tab{max-width:none}.pgrid{grid-template-columns:minmax(0,1fr)}.tl-row{grid-template-columns:minmax(0,1fr) 70px}.tl-row .nm{grid-column:1/-1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top wrap">
+  <a class="home-link" href="../" hidden style="display:inline-block;margin-bottom:10px;font-family:var(--font-mono);font-size:12.5px;color:var(--accent);text-decoration:none">&larr; All topics</a>
+  <p class="eyebrow">From the power button to the login screen</p>
+  <h1>Boot Sequence<span class="pw" aria-hidden="true"></span></h1>
+  <p class="lede">What PCs, servers and virtual machines do between pressing the power button and being ready. BIOS and UEFI, Windows, Linux and macOS, boot order rules, disk layouts and timings, from a plain-language overview to the CPU modes, keys and kernel internals underneath.</p>
+</header>
+
+<nav class="views wrap" role="tablist" aria-label="Visualisation" id="tabs"></nav>
+<p class="viewdesc wrap" id="viewdesc"></p>
+
+<div class="rail">
+  <div class="wrap rail-in">
+    <div class="groups" id="groups" role="group" aria-label="Comparison group"></div>
+    <div class="steps" id="steps"></div>
+    <div class="ctrl">
+      <button class="btn" id="prev" type="button" aria-label="Previous" title="Previous (←)">&#8592;</button>
+      <button class="btn" id="anim" type="button" aria-pressed="false" title="Pause the animations (space)">Pause animation</button>
+      <button class="btn" id="next" type="button" aria-label="Next" title="Next (→)">&#8594;</button>
+      <span class="counter" id="counter"></span>
+      <button class="btn" id="auto" type="button" aria-pressed="false" title="Move on automatically, looping">Auto-advance<span class="adv-bar"></span></button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap work">
+  <section class="viz" id="viz" aria-live="polite"></section>
+  <aside class="notes" id="notes"></aside>
+</main>
+
+<footer class="wrap">
+  <p>Timings are illustrative: they vary widely with hardware, settings and configuration. File paths and commands are the common defaults on current systems.</p>
+  <p>Message sequences are simplified to the steps that matter for comparison. Real firmware and boot loaders do much more.</p>
+</footer>
+
+<script>
+/* ============================================================
+   DATA MODEL
+   STAGES: the seven-stage relay every system follows.
+   ITEMS: systems compared. ph[stageId] = {s: sequence rows ([from,to,label] or [lane,"=",note]), t: text}.
+   GROUPS: which items are compared together, and which stages apply.
+   ============================================================ */
+const STAGES=[
+ {id:"power",name:"Power on",short:"Power",color:"var(--s1)",q:"What happens before any software runs?",
+  text:`The power supply stabilises, a small always-on controller switches the board on, and on modern PCs a hidden security processor starts and checks the firmware before the main CPU is released.`,
+  plain:{label:"Power on",sub:"button pressed",title:"Power on",line:`A small always-on chip switches the power on, and a hidden security processor checks the built-in software.`,
+   text:[`When you press the button, a tiny always-on chip switches on the main power. Before the main processor is allowed to start, a hidden security processor checks that the computer's built-in software hasn't been tampered with.`],
+   analogy:`The caretaker switching on the lights and checking the locks before anyone arrives.`,remember:`Even before "booting" starts, a computer inside the computer is already running.`}},
+ {id:"fw",name:"Firmware start",short:"Firmware",color:"var(--s2)",q:"How does the firmware wake up the hardware?",
+  text:`The CPU runs its first instruction from the firmware chip. Firmware (BIOS or UEFI) initialises memory, checks and configures devices (the Power-On Self-Test) and prepares the services the boot loader will use.`,
+  plain:{label:"Firmware",sub:"wake the hardware",title:"Wake up the hardware",line:`Software on a chip on the motherboard checks and sets up memory, disks, keyboard and screen.`,
+   text:[`The firmware, software stored on a chip on the motherboard, checks and sets up the memory, the disks, the keyboard and the screen. This is when you see the manufacturer's logo.`,`On a big server this can take minutes; on a laptop, a second or two.`],
+   analogy:`A stage crew testing the lights, microphones and curtains before the show.`,remember:`Firmware is the same no matter which operating system you'll run.`}},
+ {id:"select",name:"Choose a boot device",short:"Select",color:"var(--s3)",q:"Which device or entry wins?",
+  text:`The firmware decides what to start: a one-time choice first, then its saved boot order, then fallbacks. BIOS looks for a bootable first sector; UEFI looks for named entries and EFI files.`,
+  plain:{label:"Pick a device",sub:"boot order",title:"Choose what to start",line:`The firmware follows a priority list: internal drive, USB stick, network. A key like F12 overrides it once.`,
+   text:[`The firmware looks at a saved priority list of things it can start from: the internal drive, a USB stick, the network. Pressing a key such as F12, Esc or F8 lets you pick something else just this once.`,`If nothing on the list works, you get a message like "No bootable device".`],
+   analogy:`A receptionist with an appointment list. Whoever is first goes in, unless someone holds a one-time pass.`,remember:`One-time choices beat the saved list, and the saved list beats the fallbacks.`}},
+ {id:"loader",name:"Boot loader",short:"Loader",color:"var(--s4)",q:"Who finds and loads the operating system?",
+  text:`A small program, the boot loader, takes over from the firmware. It knows where the operating system lives, can show a menu, checks signatures and loads the kernel into memory.`,
+  plain:{label:"Boot loader",sub:"find the OS",title:"Start the boot loader",line:`A small program finds the operating system, shows a menu if you have several, and checks it's genuine.`,
+   text:[`A small program on the disk, the boot loader, takes over. It knows where the operating system lives, may show a menu if you have more than one, and checks that what it loads is genuine.`,`This is the first step that is different for Windows, Linux and macOS.`],
+   analogy:`The stage manager who knows which play is on tonight and fetches the lead actor.`,remember:`From here on, every operating system does things its own way.`}},
+ {id:"kernel",name:"Kernel start",short:"Kernel",color:"var(--s5)",q:"How does the OS take control of the machine?",
+  text:`The kernel takes over the CPU and memory, starts the other CPU cores, and loads the drivers needed to reach the disk the rest of the system lives on.`,
+  plain:{label:"Kernel",sub:"OS takes charge",title:"Start the core of the OS",line:`The heart of the operating system takes control of the processor, memory and devices.`,
+   text:[`The kernel, the heart of Windows, Linux or macOS, takes control of the processor, memory and devices, and loads the drivers it needs to read the rest of the system from disk.`],
+   analogy:`The director arrives and takes charge of the whole theatre.`,remember:`If the kernel can't reach the system disk, the boot stops here.`}},
+ {id:"init",name:"First process and services",short:"Services",color:"var(--s6)",q:"What starts all the background work?",
+  text:`The kernel starts the first user-space process (systemd, smss.exe, launchd), which starts and supervises everything else: mounts, networking, logging, security and application services.`,
+  plain:{label:"Services",sub:"background work",title:"Start the services",line:`The first program starts dozens of background services: networking, sound, updates, security.`,
+   text:[`The kernel starts one first program, which then starts dozens of background services: networking, sound, updates, security, printing.`],
+   analogy:`All the departments open their doors: box office, café, security.`,remember:`A slow or failing service is the most common cause of a slow boot.`}},
+ {id:"ready",name:"Ready",short:"Ready",color:"var(--s7)",q:"When is the machine actually ready?",
+  text:`For a desktop: the sign-in screen and then your session. For a server: its services pass health checks and accept work.`,
+  plain:{label:"Ready",sub:"sign in",title:"Ready for you",line:`The sign-in screen appears. On a server, "ready" means its services answer requests.`,
+   text:[`Finally the sign-in screen appears. On a server, "ready" means its services are answering requests, and nobody needs to sign in at all.`],
+   analogy:`The doors open and the audience comes in.`,remember:`"Booted" means different things for a laptop and for a server.`}}
+];
+const SI=Object.fromEntries(STAGES.map((s,i)=>[s.id,i]));
+
+const ITEMS={
+/* ---------------- FIRMWARE ---------------- */
+bios:{name:"Legacy BIOS",full:"PC BIOS (1981 onwards), or UEFI's CSM",color:"var(--k2)",
+ actors:[["psu","Power supply","Power Good"],["cpu","CPU","16-bit real mode"],["bios","BIOS","in the flash chip"],["disk","Boot disk","sector 0 = MBR"]],
+ ph:{
+  power:{s:[["psu","cpu","Power Good → reset released"],["cpu","bios","first instruction at F000:FFF0"]],t:`When the supply's voltages are stable it raises Power Good, and the chipset releases the CPU from reset. The CPU starts in 16-bit real mode, exactly like a 1981 IBM PC, and fetches its first instruction from the top of the BIOS chip's address range.`},
+  fw:{s:[["bios","=","POST: CPU, chipset, memory test"],["bios","disk","detect disks, run option ROMs"],["bios","=","beep codes if something fails"],["bios","=","set up interrupts (INT 10h, 13h…)"]],t:`The Power-On Self-Test checks and initialises the essentials and runs option ROMs from add-in cards such as graphics or RAID controllers. It then sets up BIOS interrupt services that boot code calls to read disks and print text.`},
+  select:{s:[["bios","=","read boot order from CMOS settings"],["bios","disk","load sector 0 (512 bytes)"],["disk","bios","ends in 0x55AA? → bootable"]],t:`The BIOS walks its saved device list and loads the first sector of each device until one ends with the signature 0x55AA. A boot-menu key overrides the list for one boot.`},
+  loader:{s:[["bios","cpu","jump to 0000:7C00"],["cpu","disk","MBR code finds the active partition"],["disk","cpu","load next stage (VBR or GRUB core)"]],t:`Only 446 bytes of code fit in the MBR, so it just finds the next stage: the active partition's boot sector, or GRUB's larger core image stored right after the MBR. Everything still runs in 16-bit mode using BIOS disk calls.`}}},
+uefi:{name:"UEFI",full:"Unified Extensible Firmware Interface",color:"var(--k1)",
+ actors:[["sp","Security processor","Intel ME / AMD PSP"],["cpu","CPU","reset vector"],["fw","UEFI firmware","SEC · PEI · DXE · BDS"],["esp","EFI partition","FAT32 on a GPT disk"]],
+ ph:{
+  power:{s:[["sp","=","starts first: checks firmware signature"],["sp","cpu","release CPU from reset"],["cpu","fw","first instruction at 0xFFFFFFF0"]],t:`On modern PCs a security processor (Intel ME or AMD PSP) starts before the main CPU. With Intel Boot Guard or AMD Platform Secure Boot, it verifies the firmware's signature and refuses to start tampered firmware.`},
+  fw:{s:[["fw","=","SEC: temporary RAM in CPU cache"],["fw","=","PEI: train and initialise RAM"],["fw","=","DXE: load drivers, find devices"],["fw","cpu","now in 64-bit long mode"]],t:`UEFI firmware runs in phases. SEC uses the CPU cache as temporary memory, PEI trains and initialises the real RAM, and DXE loads dozens of drivers for storage, USB, network and graphics. By then the CPU is in 64-bit mode.`},
+  select:{s:[["fw","=","BootNext set? else BootOrder (NVRAM)"],["fw","esp","open \\EFI\\Microsoft\\Boot\\bootmgfw.efi"],["fw","=","Secure Boot: signed by a key in db?"]],t:`Boot device selection (BDS) reads boot entries stored in the firmware's NVRAM: a one-time BootNext first, then the BootOrder list. Each entry names a partition and a file. If none works, it tries the fallback \\EFI\\BOOT\\BOOTX64.EFI on each disk.`},
+  loader:{s:[["fw","esp","load the EFI application"],["fw","=","verify signature (Secure Boot)"],["esp","cpu","run the boot loader"]],t:`A boot loader is an ordinary EFI program. It can use firmware services (files, screen, network) until the OS calls ExitBootServices. After that only a few runtime services remain, such as the clock and NVRAM variables.`}}},
+coreboot:{name:"coreboot & others",full:"Open-source firmware with a payload",color:"var(--k3)",
+ actors:[["sp","Security processor","vendor blobs"],["cpu","CPU",""],["cb","coreboot","bootblock · romstage · ramstage"],["pl","Payload","SeaBIOS · edk2 · LinuxBoot"]],
+ ph:{
+  power:{s:[["sp","=","vendor ME / PSP firmware"],["sp","cpu","release CPU"],["cpu","cb","bootblock at the reset vector"]],t:`coreboot replaces the vendor's main firmware, but on most x86 boards it still needs the vendor's security-processor firmware and memory-initialisation code as binary blobs.`},
+  fw:{s:[["cb","=","romstage: RAM initialisation"],["cb","=","ramstage: PCI devices, ACPI tables"],["cb","pl","hand over to the payload"]],t:`coreboot does only the minimum: initialise memory and devices, write the tables the OS needs (ACPI, SMBIOS), then hand over. On many boards it reaches the payload in well under a second.`},
+  select:{s:[["pl","=","SeaBIOS menu, edk2 BootOrder, or LinuxBoot"]],t:`Device selection is the payload's job. SeaBIOS behaves like a legacy BIOS, edk2 (TianoCore) like UEFI, and LinuxBoot uses a small Linux kernel to find the real OS and start it with kexec.`},
+  loader:{s:[["pl","=","load OS loader or kernel"],["pl","cpu","start GRUB, Boot Manager or Linux"]],t:`To the operating system, the payload looks like a normal BIOS or UEFI. Chromebooks use coreboot with a payload called depthcharge. ARM boards often use U-Boot instead, and Apple silicon Macs use Apple's own iBoot.`}}},
+/* ---------------- OPERATING SYSTEMS ---------------- */
+windows:{name:"Windows",full:"Windows 10 / 11 on UEFI",color:"var(--k1)",
+ actors:[["fw","UEFI","firmware"],["bm","Boot Manager","bootmgfw.efi"],["wl","winload.efi","OS loader"],["k","Kernel","ntoskrnl + HAL"],["um","User mode","smss · services"]],
+ ph:{
+  loader:{s:[["fw","bm","start bootmgfw.efi"],["bm","=","read BCD store (menu, options)"],["bm","wl","start winload.efi"],["wl","=","load kernel, HAL, SYSTEM hive, boot drivers"]],t:`Windows Boot Manager reads the Boot Configuration Data (BCD), shows a menu if there are several entries, and starts winload.efi. Winload loads the kernel, the hardware abstraction layer, the SYSTEM registry hive and every boot-start driver. After Fast Startup it runs winresume.efi instead, which reloads the hibernated kernel.`},
+  kernel:{s:[["wl","k","ExitBootServices → kernel entry"],["k","=","memory manager, start other CPU cores"],["k","=","ELAM: antivirus checks boot drivers"],["k","=","start boot and system drivers"]],t:`The kernel sets up memory management, starts the other cores and the plug-and-play manager. An Early Launch Anti-Malware driver from your antivirus may classify each boot driver before it runs. If the storage driver can't reach the system disk: INACCESSIBLE_BOOT_DEVICE.`},
+  init:{s:[["k","um","start smss.exe (Session Manager)"],["um","=","smss → csrss + wininit (session 0)"],["um","=","wininit → services.exe + lsass.exe"],["um","=","auto-start services"]],t:`The first user-mode process is the Session Manager, smss.exe. It creates sessions and starts csrss.exe and wininit.exe, which launches the Service Control Manager (services.exe) and the security authority (lsass.exe).`},
+  ready:{s:[["um","=","smss → winlogon (session 1)"],["um","=","LogonUI: sign-in screen"],["um","=","sign in → profile → explorer.exe"]],t:`winlogon shows the sign-in screen through LogonUI. After sign-in your profile loads and Explorer starts the desktop. Delayed-start services keep starting in the background.`}}},
+linux:{name:"Linux",full:"A typical distribution (Ubuntu, Fedora…) on UEFI",color:"var(--k2)",
+ actors:[["fw","UEFI","firmware"],["bl","shim + GRUB","or systemd-boot"],["k","Kernel","vmlinuz"],["ird","initramfs","early user space"],["sd","systemd","PID 1"]],
+ ph:{
+  loader:{s:[["fw","bl","start shimx64.efi (signed by Microsoft)"],["bl","=","shim verifies GRUB (distro key)"],["bl","=","GRUB menu · read grub.cfg"],["bl","k","load vmlinuz + initramfs + cmdline"]],t:`Firmware trusts Microsoft's key, so distributions ship shim signed by Microsoft. Shim then checks GRUB and the kernel with the distribution's own key. GRUB reads its configuration, shows a menu and loads the kernel and initramfs. systemd-boot, or a Unified Kernel Image started directly, are simpler alternatives.`},
+  kernel:{s:[["k","=","EFI stub · decompress · start CPUs"],["k","=","built-in drivers · unpack initramfs"],["k","ird","run /init"],["ird","=","load disk modules, unlock LUKS, find /"],["ird","k","switch_root to the real root"]],t:`The kernel unpacks itself, starts the other cores and its built-in drivers, then unpacks the initramfs, a small file system in RAM, as a temporary root. That loads the right storage modules, unlocks an encrypted disk, finds the real root file system and switches to it.`},
+  init:{s:[["k","sd","exec /sbin/init = systemd (PID 1)"],["sd","=","default.target → dependency graph"],["sd","=","start units in parallel"]],t:`systemd becomes process 1. It works out the dependency graph for the default target and starts everything it can in parallel: mounts, udev, networking, logging, then services.`},
+  ready:{s:[["sd","=","multi-user.target: services up"],["sd","=","graphical.target: display manager"],["sd","=","log in → user session"]],t:`Servers stop at multi-user.target, with a text login and running services. Desktops continue to graphical.target, which starts a display manager such as GDM. systemd-analyze shows how long each step took.`}}},
+macos:{name:"macOS",full:"macOS on Apple silicon",color:"var(--k5)",
+ actors:[["rom","Boot ROM","inside the chip"],["ib","iBoot","LLB + iBoot"],["k","XNU kernel","kernelcache"],["ld","launchd","PID 1"],["ui","loginwindow","+ WindowServer"]],
+ ph:{
+  loader:{s:[["rom","=","Boot ROM: can't be changed"],["rom","ib","verify + start LLB / iBoot"],["ib","=","read LocalPolicy (security mode)"],["ib","k","verify + load signed kernel collection"]],t:`On Apple silicon there's no BIOS or UEFI. The Boot ROM, built into the chip, verifies and starts the Low-Level Bootloader and iBoot. iBoot reads the LocalPolicy (Full, Reduced or Permissive security) and loads the signed kernel for the chosen macOS. Intel Macs used UEFI firmware and boot.efi instead.`},
+  kernel:{s:[["k","=","XNU: Mach + BSD + IOKit"],["k","=","device tree from iBoot · drivers"],["k","=","mount the sealed system volume"]],t:`The XNU kernel combines Mach, BSD and the IOKit driver framework. Hardware is described by a device tree handed over by iBoot, not by ACPI. The system volume is cryptographically sealed: any change to it stops it from booting.`},
+  init:{s:[["k","ld","start launchd (PID 1)"],["ld","=","start daemons from plists, many on demand"]],t:`launchd starts system daemons described in property-list files. Many start only when something first needs them, which keeps boot short.`},
+  ready:{s:[["ld","ui","start loginwindow + WindowServer"],["ui","=","FileVault: password unlocks the disk"],["ui","=","user session"]],t:`loginwindow and WindowServer show the login screen. With FileVault, your password unlocks the encrypted volume's key, which is protected by the Secure Enclave.`}}},
+/* ---------------- MACHINE TYPES ---------------- */
+desktop:{name:"Desktop / laptop",full:"Consumer PC with an SSD",color:"var(--k3)",
+ actors:[["btn","Power button","embedded controller"],["fw","UEFI","firmware"],["os","OS","Windows / Linux"],["user","You","sign in"]],
+ ph:{
+  power:{s:[["btn","fw","button → EC → power rails on"],["fw","=","security processor check, CPU reset"]],t:`On a laptop the power button goes to the embedded controller (EC), a small always-on chip that also manages the battery, keyboard and fans. It switches on the main power rails.`},
+  fw:{s:[["fw","=","reuse saved memory training"],["fw","=","Fast Boot: skip USB and slow checks"]],t:`Consumer firmware skips most checks with "Fast Boot" and reuses saved memory-training results, so this takes a second or two.`},
+  select:{s:[["fw","=","BootOrder: Windows Boot Manager first"],["btn","fw","F12 / F8 / Esc → one-time menu"]],t:`Usually there's one entry, the installed OS, at the top of the list. A boot-menu key gives a one-time choice, such as a USB installer.`},
+  loader:{s:[["fw","os","start the boot loader"],["os","=","Fast Startup? resume saved kernel"]],t:`With Windows Fast Startup (on by default), "Shut down" actually hibernates the kernel, so the next start resumes it instead of doing a full boot. "Restart" always does a full boot.`},
+  kernel:{s:[["os","=","kernel + drivers · GPU driver takes the screen"]],t:`The kernel starts its drivers. The graphics driver replaces the firmware's simple frame buffer, which is the flicker you sometimes see.`},
+  init:{s:[["os","=","services start, many delayed until after login"]],t:`Services start in parallel; non-essential ones are deliberately delayed until after you sign in.`},
+  ready:{s:[["os","user","sign-in screen"],["user","os","password, PIN or face"]],t:`Desktop boot is tuned for a short time to the sign-in screen: often 5 to 15 seconds from an SSD.`}}},
+server:{name:"Server",full:"Rack server with a BMC",color:"var(--k4)",
+ actors:[["bmc","BMC","iDRAC · iLO · XCC"],["fw","UEFI","firmware"],["net","Boot source","disk or network"],["os","OS","services"]],
+ ph:{
+  power:{s:[["bmc","=","always on (standby power)"],["bmc","fw","remote power on (IPMI / Redfish)"]],t:`Servers have a Baseboard Management Controller: a separate small computer with its own network port that runs whenever the server is plugged in. Admins use it to power on, watch the console and change firmware settings remotely.`},
+  fw:{s:[["fw","=","train terabytes of RAM, ECC checks"],["fw","=","RAID / HBA / NIC option ROMs"],["bmc","=","log POST progress"]],t:`With many memory channels and terabytes of RAM, memory training alone can take minutes. RAID controllers, network cards and other add-in cards then run their own firmware. Two to five minutes of POST is normal.`},
+  select:{s:[["fw","=","BootOrder: RAID disk, then PXE / HTTP"],["bmc","fw","one-time boot override · virtual media"]],t:`Servers often list network boot as a fallback, or first for automated installs. The BMC can set a one-time boot device or attach an ISO image over the network as a virtual DVD.`},
+  loader:{s:[["fw","net","DHCP: who am I, where's the loader?"],["net","fw","TFTP / HTTP: iPXE or GRUB"],["net","os","installer or diskless kernel"]],t:`Network boot (PXE) asks DHCP for an address and a boot file, downloads it over TFTP or HTTP and starts it. iPXE adds HTTPS and scripting; UEFI HTTP Boot does it natively.`},
+  kernel:{s:[["os","=","kernel + RAID / NVMe drivers"],["os","=","multipath storage, bonded network"]],t:`The kernel needs drivers for the storage controller holding the system disk, and often sets up multipath storage and bonded network links early.`},
+  init:{s:[["os","=","databases, web servers, agents"]],t:`Then the actual workloads start: databases, web servers, monitoring and management agents.`},
+  ready:{s:[["os","=","health checks pass → back in the load balancer"],["bmc","=","boot complete, sensors normal"]],t:`For a server, "ready" means its services pass their health checks and receive traffic again, not a login screen.`}}},
+vm:{name:"VM / cloud",full:"Virtual machine or cloud instance",color:"var(--k5)",
+ actors:[["hv","Hypervisor","KVM · Hyper-V · Xen"],["vfw","Virtual firmware","OVMF / SeaBIOS"],["os","Guest OS",""],["ci","cloud-init","first-boot setup"]],
+ ph:{
+  power:{s:[["hv","=","create VM: vCPUs, RAM, virtual disks"],["hv","vfw","start virtual CPU at the reset vector"]],t:`A hypervisor "powers on" a VM by allocating memory and starting virtual CPUs. There's no real power supply or security processor.`},
+  fw:{s:[["vfw","=","OVMF (UEFI) or SeaBIOS: few devices"],["vfw","=","no memory training"]],t:`Virtual firmware sees only a handful of emulated or paravirtual devices, so it's done in a second or two. Cloud VMs usually run UEFI with Secure Boot and a virtual TPM.`},
+  select:{s:[["vfw","=","boot disk from the VM configuration"]],t:`The boot device is part of the VM's configuration. Image-based clouds always boot the attached root disk.`},
+  loader:{s:[["vfw","os","GRUB / Boot Manager on the virtual disk"],["hv","os","or: direct kernel boot, no firmware"]],t:`Lightweight VMs such as Firecracker skip firmware entirely: the hypervisor loads the kernel straight into memory and starts it, booting in around 100 to 150 ms.`},
+  kernel:{s:[["os","=","virtio drivers: disk, network"]],t:`The guest kernel uses paravirtual drivers (virtio, Hyper-V) that talk to the hypervisor efficiently instead of pretending to be real hardware.`},
+  init:{s:[["os","ci","first boot: run cloud-init"],["ci","hv","read metadata (169.254.169.254)"],["ci","=","hostname, users, SSH keys, packages"]],t:`On first boot, cloud-init (cloudbase-init on Windows) fetches instance metadata and user data and configures the machine: hostname, users, SSH keys, packages and scripts.`},
+  ready:{s:[["ci","=","report ready to the cloud"]],t:`The instance reports healthy and starts receiving traffic. Cloud VMs are built to be replaced rather than repaired.`}}},
+/* ---------------- NETWORK BOOT ---------------- */
+pxe:{name:"Classic PXE",full:"Preboot eXecution Environment: DHCP + TFTP",color:"var(--k2)",
+ actors:[["nic","NIC / firmware","PXE client"],["dhcp","DHCP server","IP + boot file"],["tftp","TFTP server","boot files"],["os","Booted system","installer or OS"]],
+ ph:{
+  select:{s:[["nic","=","BootOrder reaches \"Network\" (or F12)"],["nic","dhcp","DISCOVER · option 60 PXEClient · 93 arch"],["dhcp","nic","OFFER: IP, next-server, filename"]],t:`The firmware's PXE client broadcasts a DHCP request saying it's a PXE client (option 60) and which architecture it is (option 93: 0 = BIOS, 7 = x64 UEFI). The answer carries an IP address, the boot server (next-server / option 66) and a file name (option 67). A separate "ProxyDHCP" server can supply just the boot details.`},
+  loader:{s:[["nic","tftp","TFTP read: pxelinux.0 or bootx64.efi"],["tftp","nic","512-byte blocks, one ACK each"],["nic","=","run the network bootstrap program"],["nic","tftp","it fetches kernel + initrd (TFTP)"]],t:`TFTP is a tiny UDP protocol: send one block, wait for its acknowledgement, send the next. It's simple enough for a network card's ROM, but slow for large files. The downloaded network bootstrap program is pxelinux for BIOS, GRUB or shim for UEFI, or wdsmgfw.efi for Windows Deployment Services.`},
+  kernel:{s:[["os","=","kernel + initrd now in RAM"],["os","=","root: installer in RAM, or NFS"]],t:`Once the kernel and initrd are in memory, the network-boot part is over. The root file system is the installer inside the initrd, or a shared directory mounted over NFS for diskless machines.`},
+  init:{s:[["os","tftp","installer fetches its answer file"],["os","=","install to local disk → next boot from disk"]],t:`The classic use: install an OS automatically, then boot from the local disk afterwards. Labs and thin clients instead stay diskless and boot over the network every time.`}}},
+ipxe:{name:"iPXE",full:"Open-source network boot loader, chain-loaded",color:"var(--k3)",
+ actors:[["fw","Firmware PXE","classic client"],["tftp","TFTP server",""],["ipxe","iPXE","network loader"],["web","HTTP(S) server","scripts + images"],["os","Booted system",""]],
+ ph:{
+  select:{s:[["fw","=","classic PXE: DHCP → ipxe.efi"],["fw","tftp","TFTP: small ipxe.efi"]],t:`Most firmware doesn't include iPXE, so classic PXE is used just once to fetch it. iPXE can also be flashed into a network card's ROM or started from a USB stick.`},
+  loader:{s:[["tftp","ipxe","run iPXE"],["ipxe","=","DHCP again, user-class \"iPXE\""],["ipxe","web","GET boot.ipxe (a script)"],["web","ipxe","#!ipxe · kernel … · initrd … · boot"],["ipxe","web","HTTPS: kernel + initrd (fast, TCP)"]],t:`iPXE asks DHCP again; recognising its user class, the server now returns a script URL instead of ipxe.efi, which avoids an endless loop. Scripts can show menus, use variables, and fetch over HTTP, HTTPS, iSCSI or AoE.`},
+  kernel:{s:[["ipxe","os","boot kernel with its command line"],["os","=","or: sanboot iscsi:… (disk over network)"]],t:`iPXE hands over to the kernel like any boot loader. With sanboot it can instead attach a remote iSCSI disk and boot from that.`},
+  init:{s:[["os","web","fetch config or image over HTTPS"],["os","=","installer, live system or rescue tool"]],t:`Bare-metal clouds and provisioning tools (MAAS, OpenStack Ironic, Tinkerbell) rely on iPXE, and netboot.xyz offers a public menu of installers and tools to boot straight from the internet.`}}},
+httpboot:{name:"UEFI HTTP Boot",full:"Built into UEFI 2.5+: boot from a URL",color:"var(--k1)",
+ actors:[["fw","UEFI firmware","HTTP boot client"],["dhcp","DHCP server","returns a URL"],["web","HTTP(S) server","EFI files, ISOs"],["os","Booted system",""]],
+ ph:{
+  select:{s:[["fw","=","entry \"UEFI HTTPv4\" or a preset URL"],["fw","dhcp","DHCP · vendor class \"HTTPClient\""],["dhcp","fw","OFFER: IP + boot URL"]],t:`UEFI firmware from spec 2.5 onwards includes an HTTP client. DHCP answers clients identifying as HTTPClient with a full URL instead of a TFTP file name. Alternatively, an admin sets the URL directly in the firmware or remotely through the BMC (Redfish).`},
+  loader:{s:[["fw","web","GET https://…/grubx64.efi or an .iso"],["fw","=","check TLS certificate + Secure Boot"],["web","fw","EFI program, or ISO as a RAM disk"]],t:`No TFTP at all: files come over HTTP or HTTPS, so they're fast and routable across networks. HTTPS needs the server's CA certificate enrolled in the firmware. The firmware can even download a whole ISO image and boot it as a RAM disk.`},
+  kernel:{s:[["fw","os","boot loader → kernel"],["os","=","installer runs from RAM"]],t:`From here it's an ordinary boot: the downloaded loader starts the kernel, usually an installer.`},
+  init:{s:[["os","web","pull packages or a disk image over HTTPS"]],t:`Combined with Redfish's one-time boot setting, a server can be told "boot this URL once" remotely, without changing the DHCP setup at all.`}}},
+iscsi:{name:"iSCSI / SAN boot",full:"The boot disk lives on a storage network",color:"var(--k4)",
+ actors:[["fw","Firmware / NIC","iSCSI initiator"],["san","Storage array","iSCSI target"],["k","OS kernel","own initiator"],["os","Running OS",""]],
+ ph:{
+  select:{s:[["fw","=","boot entry: iSCSI disk (target IQN, LUN)"],["fw","san","TCP 3260 · login (CHAP)"],["san","fw","LUN appears as a local disk"]],t:`A network card's option ROM, the UEFI iSCSI driver, or iPXE's sanboot acts as an iSCSI initiator. It logs in to the storage array, and the remote volume (LUN) shows up to the firmware as an ordinary disk.`},
+  loader:{s:[["fw","san","read GPT, EFI partition, loader"],["san","fw","blocks, as from a local disk"],["fw","=","write iBFT table into ACPI"]],t:`The boot loader is read block by block from the remote disk. The firmware also leaves an iSCSI Boot Firmware Table (iBFT) in ACPI describing the IP settings, target and credentials it used.`},
+  kernel:{s:[["k","=","firmware driver gone after ExitBootServices"],["k","=","read iBFT"],["k","san","log in again with the OS initiator"],["san","k","root disk back → continue"]],t:`Once the OS takes over, the firmware's iSCSI driver is gone, so the OS must reconnect before it can mount its root. Windows supports this natively; Linux does it in the initramfs (iscsistart, dracut).`},
+  init:{s:[["os","san","all disk I/O over the network"],["os","=","multipath: two paths for redundancy"]],t:`The server runs permanently from shared storage. Fibre Channel SANs work the same way with an HBA instead of a network card. The benefit is stateless servers; the risk is that a network fault makes the system disk vanish.`}}}
+};
+
+const GROUPS={
+ fw:{name:"Firmware",short:"BIOS · UEFI · coreboot",items:["bios","uefi","coreboot"],stages:["power","fw","select","loader"],q:"How does the machine get from power to a boot loader?",
+  diff:{power:`Legacy BIOS machines had no security processor; the CPU simply came out of reset. UEFI-era PCs run Intel ME or AMD PSP first, which can verify the firmware before the CPU starts. coreboot still depends on those vendor parts.`,
+   fw:`BIOS runs a POST in 16-bit mode and offers interrupt services. UEFI works in phases, loads drivers and switches to 64-bit. coreboot initialises the bare minimum and hands everything else to a payload.`,
+   select:`BIOS picks the first device whose sector 0 ends in 0x55AA. UEFI picks named entries from NVRAM (BootNext, then BootOrder), then fallback files. coreboot leaves it to its payload.`,
+   loader:`A BIOS boot loader must squeeze into 446 bytes and chain further stages. A UEFI boot loader is a normal file, signed for Secure Boot. With coreboot, the payload decides which of the two styles applies.`},
+  verdict:`New machines are UEFI with Secure Boot. Legacy BIOS (or CSM) only matters for old systems and old installs, and is disappearing from firmware. coreboot suits people who want open, fast firmware on supported hardware.`},
+ os:{name:"Operating systems",short:"Windows · Linux · macOS",items:["windows","linux","macos"],stages:["loader","kernel","init","ready"],q:"What does each OS do once the firmware hands over?",
+  diff:{loader:`Windows: Boot Manager plus winload, configured by the BCD store. Linux: shim and GRUB (or systemd-boot), configured by text files. macOS on Apple silicon: Apple's own Boot ROM and iBoot chain, with no UEFI at all.`,
+   kernel:`Windows has winload load every boot-start driver before the kernel runs. Linux uses an initramfs to find and unlock the root disk. macOS gets a device tree from iBoot and mounts a cryptographically sealed system volume.`,
+   init:`The first processes: smss.exe on Windows, systemd on most Linux distributions, launchd on macOS. Each then starts and supervises the services.`,
+   ready:`winlogon and LogonUI, a Linux display manager or text login, macOS loginwindow. Servers usually stop before any graphical login.`},
+  verdict:`The shape is the same everywhere: loader → kernel → first process → services → login. The differences are in tools and file locations: BCD and bcdedit on Windows, grub.cfg and systemd on Linux, LocalPolicy and launchd on macOS.`},
+ hw:{name:"Machine types",short:"Desktop · Server · VM",items:["desktop","server","vm"],stages:["power","fw","select","loader","kernel","init","ready"],q:"How does the type of machine change the boot?",
+  diff:{power:`A laptop's embedded controller powers it on from the button. A server's BMC is always running and can power it on remotely. A VM is "powered on" by software.`,
+   fw:`Desktops skip checks for speed. Servers train huge amounts of RAM and run many card ROMs, taking minutes. VMs have almost nothing to initialise.`,
+   select:`Desktops boot their internal SSD. Servers often fall back to network boot and accept remote one-time overrides. VMs boot whatever disk is attached.`,
+   loader:`Desktops may resume a hibernated kernel (Fast Startup). Servers may download their loader over the network. MicroVMs skip the boot loader entirely.`,
+   kernel:`Desktops need graphics drivers early; servers need RAID, NVMe, multipath and bonded networking; VMs use virtio drivers.`,
+   init:`Desktop services are tuned around the user; server services are the workload itself; cloud VMs run cloud-init on first boot.`,
+   ready:`Ready means a sign-in screen, a passing health check, or a VM reporting ready to the cloud.`},
+  verdict:`Same seven stages, very different priorities: desktops optimise for seconds to the sign-in screen, servers for reliability and remote control, and VMs for skipping as much as possible.`},
+ net:{name:"Network boot",short:"PXE · iPXE · HTTP Boot · iSCSI",items:["pxe","ipxe","httpboot","iscsi"],stages:["select","loader","kernel","init"],q:"How can a machine boot from the network instead of a local disk?",
+  diff:{select:`Classic PXE and iPXE start with a DHCP request that states the client's architecture. UEFI HTTP Boot also uses DHCP but receives a URL, or uses one an admin preset. iSCSI boot logs in to a remote disk instead of downloading a program.`,
+   loader:`PXE downloads a small program over TFTP, slowly. iPXE and HTTP Boot fetch over HTTP or HTTPS: faster, routable and verifiable. iSCSI reads the boot loader block by block from a remote disk, as if it were local.`,
+   kernel:`With PXE, iPXE and HTTP Boot, the kernel and initrd are in RAM and the network part is done, unless the root is on NFS. With iSCSI the OS must reconnect to the same disk itself, using the iBFT the firmware left behind.`,
+   init:`Typical uses: PXE, iPXE and HTTP Boot run installers, rescue tools or diskless systems; iSCSI and Fibre Channel run servers permanently from shared storage.`},
+  verdict:`Use iPXE or UEFI HTTP Boot for new provisioning (fast, HTTPS, scriptable), classic PXE only where old hardware or tools need it, and SAN boot when servers should be stateless and storage is centralised.`}
+};
+const GROUP_IDS=["fw","os","hw","net"];
+
+const COMPARE={
+ fw:[["era","Era"],["mode","CPU mode at boot"],["disk","Disk layout"],["entries","How boot choices are stored"],["code","Where boot code lives"],["secure","Secure boot"],["iface","Interface to the OS"],["limits","Limits"],["today","Where you meet it today"]],
+ os:[["loader","Boot loader"],["config","Configuration"],["kernel","Kernel"],["early","Early drivers"],["first","First process"],["svc","Service manager"],["login","Login"],["logs","Boot diagnostics"],["fast","Speed tricks"]],
+ hw:[["fwtype","Firmware"],["post","Firmware time"],["source","Boots from"],["mgmt","Managed through"],["total","Typical boot time"],["ready","Ready means"],["special","Special features"]],
+ net:[["year","Introduced"],["builtin","Built into"],["transport","Transport"],["discovery","How it finds what to boot"],["speed","Speed"],["security","Security"],["routing","Across networks"],["use","Typical use"],["watch","Watch out for"]]
+};
+const CMP={
+ bios:{era:"1981 (IBM PC) to around 2020",mode:"16-bit real mode, 1 MB address space",disk:"MBR: up to 2 TiB, 4 primary partitions",entries:"Device order in CMOS settings",code:"446 bytes in sector 0, then chained stages",secure:"None",iface:"Software interrupts (INT 13h disk, INT 10h video)",limits:"Tiny boot code, no drivers, slow",today:"Old machines, CSM mode, some VMs (SeaBIOS)"},
+ uefi:{era:"Standardised 2005; default since around 2012",mode:"64-bit long mode (32-bit on some tablets)",disk:"GPT (reads MBR too); practically unlimited",entries:"Named entries in NVRAM: BootOrder, BootNext",code:"EFI programs (.efi files) on a FAT32 EFI System Partition",secure:"Secure Boot: PK, KEK, db, dbx",iface:"Boot services and runtime services; ACPI tables",limits:"Large and complex; firmware bugs and bootkits",today:"Almost every PC, server and cloud VM"},
+ coreboot:{era:"1999 (as LinuxBIOS) onwards",mode:"32/64-bit, then whatever the payload needs",disk:"Depends on the payload",entries:"Depends on the payload",code:"Payload: SeaBIOS, edk2, LinuxBoot, depthcharge",secure:"Verified boot (vboot) and measured boot",iface:"BIOS or UEFI, provided by the payload",limits:"Needs vendor blobs on most x86; limited board support",today:"Chromebooks, System76 and Purism laptops, LinuxBoot in data centres"},
+ windows:{loader:"Windows Boot Manager → winload.efi",config:"BCD store (bcdedit)",kernel:"ntoskrnl.exe + HAL",early:"Boot-start drivers loaded by winload; ELAM",first:"smss.exe",svc:"services.exe (Service Control Manager)",login:"winlogon + LogonUI",logs:"Event Viewer, boot logging, Windows Performance Recorder",fast:"Fast Startup (hibernated kernel)"},
+ linux:{loader:"shim + GRUB, systemd-boot, or a Unified Kernel Image",config:"grub.cfg, loader entries, kernel command line",kernel:"vmlinuz (Linux)",early:"initramfs with modules and unlock tools",first:"systemd (or OpenRC, runit)",svc:"systemd units and targets",login:"getty, or a display manager (GDM, SDDM)",logs:"journalctl -b, systemd-analyze, dmesg",fast:"Parallel units; kexec skips firmware on reboot"},
+ macos:{loader:"Boot ROM → LLB / iBoot (Apple silicon); boot.efi (Intel)",config:"LocalPolicy, Startup Security Utility",kernel:"XNU kernel collection",early:"Drivers in the signed kernel collection",first:"launchd",svc:"launchd (on demand)",login:"loginwindow",logs:"log show, Console",fast:"Sealed system volume, on-demand daemons"},
+ desktop:{fwtype:"UEFI with Fast Boot",post:"1–5 s",source:"Internal SSD; USB via the boot menu",mgmt:"Keyboard and screen, in person",total:"5–20 s to sign-in",ready:"Sign-in screen",special:"Fast Startup, sleep and hibernate"},
+ server:{fwtype:"UEFI (often with legacy mode available)",post:"1–5 minutes",source:"RAID/NVMe, SAN, PXE or HTTP boot",mgmt:"BMC: remote console, power, virtual media (IPMI, Redfish)",total:"2–10 minutes",ready:"Services healthy, back in the load balancer",special:"ECC memory checks, option ROMs, redundant boot disks"},
+ vm:{fwtype:"OVMF (UEFI), SeaBIOS, or none",post:"Under 1–2 s",source:"Virtual disk image, or a kernel passed by the hypervisor",mgmt:"Hypervisor or cloud API",total:"~0.1 s (microVM) to 30 s",ready:"Metadata applied, health check passes",special:"cloud-init on first boot; virtual TPM and Secure Boot"},
+ pxe:{year:"1999 (Intel PXE 2.1)",builtin:"Almost every network card and UEFI firmware",transport:"DHCP + TFTP over UDP",discovery:"DHCP options 66/67 (server, file), or ProxyDHCP",speed:"Slow: TFTP waits for an ACK after every block",security:"None built in; Secure Boot can check the loader",routing:"Needs a DHCP relay per subnet; TFTP struggles over WAN",use:"OS installs, Windows Deployment Services, diskless labs",watch:"TFTP timeouts; a different boot file for BIOS and UEFI clients"},
+ ipxe:{year:"2010 (from gPXE / Etherboot)",builtin:"Chain-loaded via PXE, flashed to NIC ROM, or on USB",transport:"HTTP, HTTPS, iSCSI, AoE, TFTP",discovery:"DHCP user class, then scripts with menus and variables",speed:"Fast: HTTP over TCP",security:"HTTPS with trusted certificates; image signature checks",routing:"Works anywhere HTTP does",use:"Bare-metal clouds, MAAS, Ironic, Tinkerbell, netboot.xyz",watch:"Secure Boot needs a signed build (or shim), else turn it off"},
+ httpboot:{year:"2015 (UEFI 2.5)",builtin:"UEFI firmware on most current servers and many PCs",transport:"HTTP or HTTPS over TCP",discovery:"DHCP returns a URL, or a URL set in firmware / via Redfish",speed:"Fast",security:"HTTPS with CA certificates in firmware, plus Secure Boot",routing:"Routable, works over WAN",use:"Modern server provisioning; booting ISO images over the network",watch:"Firmware support and certificate enrolment vary by vendor"},
+ iscsi:{year:"2004 (iSCSI, RFC 3720)",builtin:"NIC option ROMs, UEFI iSCSI driver, iPXE sanboot",transport:"iSCSI over TCP 3260 (Fibre Channel for FC SANs)",discovery:"Configured target name (IQN) and LUN, or DHCP root-path",speed:"As fast as the storage network",security:"CHAP authentication; isolated storage network",routing:"Routable, usually a dedicated storage VLAN",use:"Stateless servers running from central storage",watch:"Network loss = system disk loss; the OS must reconnect (iBFT)"}
+};
+/* Illustrative seconds per stage, for the timeline. */
+const TIMES={bios:{power:.3,fw:8,select:1,loader:.5},uefi:{power:.5,fw:4,select:.5,loader:.5},coreboot:{power:.3,fw:.6,select:.5,loader:.3},
+ windows:{loader:1,kernel:3,init:4,ready:3},linux:{loader:1.5,kernel:1.5,init:4,ready:2},macos:{loader:2,kernel:3,init:3,ready:2},
+ desktop:{power:.3,fw:2.5,select:.3,loader:1,kernel:3,init:4,ready:2},server:{power:5,fw:180,select:5,loader:20,kernel:15,init:30,ready:20},vm:{power:.2,fw:1.5,select:.1,loader:.5,kernel:1,init:8,ready:2},
+ pxe:{select:6,loader:20,kernel:3,init:20},ipxe:{select:7,loader:4,kernel:3,init:20},httpboot:{select:4,loader:5,kernel:3,init:20},iscsi:{select:5,loader:3,kernel:6,init:15}};
+
+const TROUBLE=[
+ ["Nothing at all: no lights, no fans","power",`The power supply, cable, battery or power button. The firmware never got a chance to start.`],
+ ["Fans spin, black screen, maybe beeps or a blinking LED","fw",`The firmware checks failed, very often memory or graphics. The beep pattern or LED code (see the manual) tells you which part.`],
+ ["Logo, then \"No bootable device\" or \"Reboot and select proper boot device\"","select",`The firmware found nothing it could start: wrong boot order, a lost boot entry, a disk that isn't detected, or a BIOS/UEFI mode mismatch (see the Boot order simulator).`],
+ ["\"PXE-E53: No boot filename received\" or \"PXE-E32: TFTP open timeout\"","select",`The firmware fell through to network boot, usually because the disk entry before it failed. E53 means DHCP answered without a boot file; E32 means the TFTP server didn't respond. If you didn't mean to network-boot, fix the disk or the boot order.`],
+ ["\"Secure Boot violation\" or \"Invalid signature detected\"","select",`The boot loader isn't signed by a key the firmware trusts, or its key has been revoked. Use a signed loader, or turn Secure Boot off temporarily.`],
+ ["\"grub rescue>\" or \"The Boot Configuration Data is missing\"","loader",`The boot loader started but can't find its configuration or the OS files, for example after a partition change or a failed update.`],
+ ["Blue screen INACCESSIBLE_BOOT_DEVICE, or \"Kernel panic: VFS: Unable to mount root fs\"","kernel",`The kernel can't reach the system disk: a missing storage driver, a changed controller mode (RAID vs AHCI), or a wrong root setting.`],
+ ["Spinning dots forever, or Linux \"emergency mode\"","init",`A service or disk mount is failing or waiting. Linux: journalctl -xb. Windows: Safe Mode or boot logging.`],
+ ["Sign-in appears, but the desktop takes ages","ready",`Startup apps and delayed services. The boot itself worked; trim startup programs.`]
+];
+
+/* ============================================================
+   BOOT ORDER SIMULATOR
+   ============================================================ */
+const PRESETS=[
+ {name:"Normal start",c:{mode:"uefi",sb:true,disk:"gpt",winEntry:true,usb:"none",usbSigned:true,usbFirst:false,once:"none",net:true,pxe:false},
+  t:`An everyday start: no one-time choice, so the firmware works through BootOrder and the first entry, Windows Boot Manager, starts.`},
+ {name:"USB installer via F12",c:{mode:"uefi",sb:true,disk:"gpt",winEntry:true,usb:"both",usbSigned:true,usbFirst:false,once:"f12",net:true,pxe:false},
+  t:`A one-time choice from the boot menu beats BootOrder. The installer is signed, so Secure Boot lets it run.`},
+ {name:"Unsigned USB blocked",c:{mode:"uefi",sb:true,disk:"gpt",winEntry:true,usb:"uefi",usbSigned:false,usbFirst:true,once:"none",net:true,pxe:false},
+  t:`The USB stick is first in BootOrder, but its loader isn't signed by a trusted key. Secure Boot rejects it and the firmware moves on to the next entry.`},
+ {name:"Lost boot entry",c:{mode:"uefi",sb:true,disk:"gpt",winEntry:false,usb:"none",usbSigned:true,usbFirst:false,once:"none",net:false,pxe:false},
+  t:`After a firmware reset or moving the disk to another machine, NVRAM has no Windows entry. The fallback path \\EFI\\BOOT\\BOOTX64.EFI still finds Windows, which then recreates its entry.`},
+ {name:"Wrong mode: legacy with a UEFI install",c:{mode:"legacy",sb:false,disk:"gpt",winEntry:true,usb:"none",usbSigned:true,usbFirst:false,once:"none",net:false,pxe:false},
+  t:`Someone enabled CSM / legacy mode. The disk was set up for UEFI (GPT), so its first sector has no boot code and nothing starts.`},
+ {name:"Old legacy install",c:{mode:"legacy",sb:false,disk:"mbr",winEntry:false,usb:"none",usbSigned:true,usbFirst:false,once:"none",net:false,pxe:false},
+  t:`An older install on an MBR disk, in legacy mode: the BIOS loads sector 0, sees 0x55AA and runs the MBR code.`},
+ {name:"Empty disk, network install",c:{mode:"uefi",sb:true,disk:"empty",winEntry:false,usb:"none",usbSigned:true,usbFirst:false,once:"none",net:true,pxe:true},
+  t:`A new server with a blank disk. Nothing bootable locally, so network boot takes over and a PXE server provides an installer.`}
+];
+function simulate(c){
+  const T=[];const add=(t,k)=>T.push({t,k});
+  const tryNet=()=>{if(c.pxe){add("Network boot: DHCP offer includes a boot file → download over TFTP/HTTP and run it","ok");return "Network installer (PXE)";}
+    add("Network boot: no DHCP offer with a boot file → time out","skip");return null;};
+  if(c.mode==="uefi"){
+    add(`UEFI mode · Secure Boot ${c.sb?"on":"off"}`,"info");
+    const usbU=c.usb==="uefi"||c.usb==="both";
+    const tryUsb=w=>{if(c.usb==="none"){add(`${w}: no USB stick inserted`,"skip");return null;}
+      if(!usbU){add(`${w}: stick has no \\EFI\\BOOT\\BOOTX64.EFI (legacy-only)`,"skip");return null;}
+      if(c.sb&&!c.usbSigned){add(`${w}: loader not signed by a trusted key → Secure Boot blocks it`,"skip");return null;}
+      add(`${w}: run \\EFI\\BOOT\\BOOTX64.EFI from the USB stick`,"ok");return "USB stick (UEFI)";};
+    const tryWin=()=>{if(c.disk!=="gpt"){add("Windows Boot Manager: file not found (disk isn't set up for UEFI)","skip");return null;}
+      add(`Windows Boot Manager: run \\EFI\\Microsoft\\Boot\\bootmgfw.efi${c.sb?" (signed by Microsoft → allowed)":""}`,"ok");return "Windows from the internal disk";};
+    if(c.once==="f12"){const r=tryUsb("Boot menu (F12) choice");if(r)return{T,res:r};}
+    if(c.once==="bootnext"){const r=tryUsb("BootNext (one time)");if(r)return{T,res:r};add("BootNext is cleared after one attempt","info");}
+    const order=[];if(c.winEntry)order.push("win");
+    if(usbU)order.splice(c.usbFirst?0:order.length,0,"usb");else if(c.usb==="legacy")add("Legacy-only USB stick doesn't appear in the UEFI boot list","info");
+    if(c.net)order.push("net");
+    const N={win:"Windows Boot Manager",usb:"UEFI: USB stick",net:"UEFI: PXE network"};
+    add(`BootOrder from NVRAM: ${order.length?order.map(o=>N[o]).join(" → "):"(empty)"}`,"info");
+    for(const o of order){const r=o==="win"?tryWin():o==="usb"?tryUsb("Entry \"UEFI: USB stick\""):tryNet();if(r)return{T,res:r};}
+    add("No entry worked → scan disks for the fallback \\EFI\\BOOT\\BOOTX64.EFI","info");
+    if(c.disk==="gpt"){add(`Internal disk's EFI partition has BOOTX64.EFI (a copy of Boot Manager) → run it${c.winEntry?"":"; Windows recreates its NVRAM entry"}`,"ok");return{T,res:"Windows via the fallback path"};}
+    add(c.disk==="mbr"?"Internal disk is MBR-only: nothing UEFI can start":"Internal disk is empty","skip");
+    return{T,res:null,err:"No bootable device"};
+  }
+  add("Legacy BIOS mode (CSM) · Secure Boot isn't available in this mode","info");
+  const usbL=c.usb==="legacy"||c.usb==="both";
+  const tryUsb=w=>{if(c.usb==="none"){add(`${w}: no USB stick inserted`,"skip");return null;}
+    if(!usbL){add(`${w}: stick's sector 0 doesn't end in 0x55AA (UEFI-only)`,"skip");return null;}
+    add(`${w}: load sector 0, 0x55AA found → run it`,"ok");return "USB stick (legacy)";};
+  const tryDisk=()=>{if(c.disk==="mbr"){add("Hard disk: sector 0 has boot code and 0x55AA → MBR code → Windows","ok");return "Windows from the internal disk (legacy)";}
+    add(c.disk==="gpt"?"Hard disk: protective MBR of a GPT disk, no boot code → skip":"Hard disk: sector 0 is empty, no 0x55AA → skip","skip");return null;};
+  if(c.once==="f12"){const r=tryUsb("Boot menu (F12) choice");if(r)return{T,res:r};}
+  if(c.once==="bootnext")add("BootNext is a UEFI variable: ignored in legacy mode","info");
+  const order=["disk"];if(c.usb!=="none")order.splice(c.usbFirst?0:1,0,"usb");if(c.net)order.push("net");
+  add(`Boot order from CMOS: ${order.map(o=>({disk:"Hard disk",usb:"USB",net:"Network (PXE)"}[o])).join(" → ")}`,"info");
+  for(const o of order){const r=o==="disk"?tryDisk():o==="usb"?tryUsb("USB"):tryNet();if(r)return{T,res:r};}
+  return{T,res:null,err:"Reboot and select proper boot device"};
+}
+
+/* ============================================================
+   DISK LAYOUTS
+   ============================================================ */
+const DISK=[
+ {name:"MBR (legacy BIOS)",sum:`The first 512 bytes of a disk set up the old way: boot code, a 4-entry partition table, and the signature.`,
+  layouts:[{lbl:"Sector 0 of an MBR disk (512 bytes)",f:[
+   ["boot code",446,"code","A tiny program the BIOS loads to address 0x7C00 and runs. It finds the active partition and loads that partition's boot sector, or GRUB's next stage."],
+   ["disk signature",4,"meta","An ID Windows uses to recognise the disk."],
+   ["reserved",2,"meta","Usually zero."],
+   ["partition 1",16,"table","Active flag (0x80 = boot from here), type (0x07 NTFS, 0x83 Linux, 0xEE GPT protective), start sector and size. Both are 32-bit sector numbers, which is where the 2 TiB limit comes from with 512-byte sectors."],
+   ["partition 2",16,"table","Second entry."],
+   ["partition 3",16,"table","Third entry."],
+   ["partition 4",16,"table","Fourth and last. More partitions need an 'extended' partition that holds a chain of logical ones."],
+   ["0x55 0xAA",2,"sig","The boot signature. The BIOS only treats the sector as bootable if it ends with these two bytes."]]}],
+  text:[`This layout dates from 1983. Everything a BIOS needs to boot fits in one sector, which is why the boot code has to hand over to a bigger stage almost immediately.`,
+   `GRUB hides its next stage in the gap between the MBR and the first partition; Windows uses the active partition's own boot sector, which starts bootmgr.`],
+  facts:[`512 bytes`,`446-byte boot code`,`4 primary partitions`,`2 TiB limit`]},
+ {name:"GPT (UEFI)",sum:`The GUID Partition Table: redundant, checksummed, effectively unlimited, with a special partition for boot files.`,
+  layouts:[{lbl:"Start of a GPT disk",f:[
+   ["LBA 0: protective MBR",512,"meta","A fake MBR with one partition of type 0xEE covering the whole disk, so old tools see the disk as in use instead of empty. It has no boot code for UEFI to use."],
+   ["LBA 1: GPT header",92,"table","Signature \"EFI PART\", the disk's GUID, where the partition entries are, and CRC32 checksums of the header and entries."],
+   ["LBA 2–33: partition entries",16384,"table","128 entries of 128 bytes. Each has a type GUID, a unique GUID, 64-bit first and last sectors, attributes and a name."],
+   ["EFI System Partition","100–600 MB","code","Type C12A7328-F81F-11D2-BA4B-00A0C93EC93B, formatted FAT32. UEFI reads boot loaders from here as ordinary files."],
+   ["MSR / other partitions","n","data","Microsoft Reserved, the Windows or Linux system partition, recovery partitions, data."]]},
+   {lbl:"End of the same disk",f:[
+   ["…partitions",  "n","data","The rest of the disk."],
+   ["backup partition entries",16384,"table","A full second copy of the entries."],
+   ["backup GPT header",92,"table","The last sector. If the primary header is damaged, tools can restore it from here."]]}],
+  text:[`GPT keeps two copies of everything, with checksums, and uses 64-bit sector numbers, so disk size isn't a practical limit and 128 partitions are allowed by default.`,
+   `UEFI firmware understands FAT32 and GPT itself: it finds the EFI System Partition by its type GUID and reads loader files from it, instead of running code from sector 0.`],
+  facts:[`GUIDs`,`CRC32 checksums`,`backup header`,`EFI System Partition`]},
+ {name:"Inside the EFI partition",sum:`The files UEFI actually starts, and the NVRAM entries that point at them.`,
+  tree:[["EFI System Partition (FAT32)","","dir","Mounted as /boot/efi on Linux; hidden on Windows (mountvol S: /S to see it)."],
+   ["  EFI/","","dir","All boot loaders live under this folder, one sub-folder per vendor."],
+   ["    BOOT/BOOTX64.EFI","fallback","file","The default loader name. Firmware runs it when no NVRAM entry works, and it's how USB sticks boot. Windows and many Linux installs put a copy here."],
+   ["    Microsoft/Boot/bootmgfw.efi","Windows","file","Windows Boot Manager, signed by Microsoft."],
+   ["    Microsoft/Boot/BCD","Windows","file","Boot Configuration Data: a registry hive listing boot entries and options. Edit it with bcdedit."],
+   ["    ubuntu/shimx64.efi","Linux","file","shim, signed by Microsoft's third-party UEFI CA, so Secure Boot allows it. It then trusts the distribution's key."],
+   ["    ubuntu/grubx64.efi","Linux","file","GRUB, signed by the distribution and checked by shim."],
+   ["    ubuntu/grub.cfg","Linux","file","A small stub that points to the real configuration in /boot/grub."],
+   ["    Linux/*.efi","Linux","file","Unified Kernel Images: kernel, initramfs and command line in one signed EFI file, startable directly by firmware or systemd-boot."],
+   ["  loader/entries/*.conf","systemd-boot","file","Boot entries for systemd-boot, one small text file each."]],
+  nvram:`$ efibootmgr
+BootCurrent: 0001
+BootOrder: 0001,0000,0002
+Boot0000* Windows Boot Manager  HD(1,GPT,…)/\\EFI\\Microsoft\\Boot\\bootmgfw.efi
+Boot0001* ubuntu                HD(1,GPT,…)/\\EFI\\ubuntu\\shimx64.efi
+Boot0002* UEFI: PXE IPv4        MAC(…)/IPv4(…)`,
+  text:[`NVRAM boot entries are variables stored in the firmware's flash chip, not on the disk. Each points to a partition (by GPT GUID) and a file path. efibootmgr on Linux and bcdedit /enum firmware on Windows list them.`,
+   `Because they live in the firmware, they can be lost on a firmware reset or when the disk moves to another machine. That's what the fallback path is for.`],
+  facts:[`FAT32`,`one folder per vendor`,`BOOTX64.EFI fallback`,`NVRAM entries`]}
+];
+
+/* ============================================================
+   HELPERS + ANIMATION ENGINE (shared with the other mini projects)
+   ============================================================ */
+const NS="http://www.w3.org/2000/svg";
+function S(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in (attrs||{}))e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ANIM={paused:false};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+class Flow{
+  constructor(layer,items,{label=true,vbw=1000,onActive=null}={}){
+    this.items=items;this.vbw=vbw;this.last=-2;this.onActive=onActive;
+    let t=0;items.forEach(it=>{let L=0,seg=[];for(let i=1;i<it.pts.length;i++){const d=Math.hypot(it.pts[i][0]-it.pts[i-1][0],it.pts[i][1]-it.pts[i-1][1]);seg.push(d);L+=d;}
+      it.seg=seg;it.len=L;it.dur=Math.max(1600,Math.min(4200,L*4.2));it.start=t;t+=it.dur+450;});
+    this.total=t+1800;
+    this.trails=items.map(it=>S("polyline",{class:"trail",points:it.pts.map(p=>p.join(",")).join(" ")},layer));
+    this.dot=S("circle",{class:"pkt",r:7,cx:-50,cy:-50},layer);
+    if(label){this.pill=S("g",{class:"pill"},layer);this.pr=S("rect",{rx:5,height:20},this.pill);this.pt=S("text",{y:14,x:7},this.pill);}
+  }
+  at(it,f){let d=f*it.len;for(let i=0;i<it.seg.length;i++){if(d<=it.seg[i]||i===it.seg.length-1){const r=it.seg[i]?Math.min(1,d/it.seg[i]):1,a=it.pts[i],b=it.pts[i+1];return [a[0]+(b[0]-a[0])*r,a[1]+(b[1]-a[1])*r];}d-=it.seg[i];}return it.pts[0];}
+  start(){
+    if(!this.items.length)return;
+    if(reduced){this.trails.forEach(t=>t.classList.add("act"));this.dot.remove();if(this.pill)this.pill.remove();return;}
+    let last=performance.now(),el=0;
+    const loop=now=>{
+      if(!ANIM.paused)el+=now-last;last=now;
+      const tt=el%this.total;let idx=-1;
+      this.items.forEach((it,i)=>{if(tt>=it.start&&tt<it.start+it.dur)idx=i;});
+      if(idx!==this.last){this.trails.forEach((t,i)=>t.classList.toggle("act",i===idx));this.onActive&&this.onActive(idx);this.last=idx;}
+      if(idx<0){this.dot.setAttribute("cx",-50);if(this.pill)this.pill.setAttribute("transform","translate(-999,-999)");}
+      else{const it=this.items[idx],f=(tt-it.start)/it.dur,e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2,[x,y]=this.at(it,e);
+        this.dot.setAttribute("cx",x);this.dot.setAttribute("cy",y);
+        if(this.pill){if(this.pt.textContent!==it.label)this.pt.textContent=it.label;const w=it.label.length*6.7+14;this.pr.setAttribute("width",w);
+          const px=Math.max(4,Math.min(this.vbw-w-4,x-w/2)),py=Math.max(2,y-34);this.pill.setAttribute("transform",`translate(${px},${py})`);}}
+      this.raf=requestAnimationFrame(loop);
+    };
+    this.raf=requestAnimationFrame(loop);
+  }
+  stop(){cancelAnimationFrame(this.raf);}
+}
+/* Animated sequence diagram: actors [[id,label,sub]], rows [from,to,label] or [lane,"=",note]. */
+function seqDiagram(A,rows,aria){
+  const n=A.length,W=Math.max(380,n*150),LW=(W-20)/n,X=i=>10+LW*(i+.5),xi=id=>X(A.findIndex(a=>a[0]===id));
+  const H=58+rows.length*36+6;
+  const box=document.createElement("div");box.className="pc-svg";
+  const svg=S("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":aria,style:`min-width:${Math.round(W*.85)}px`},box);
+  A.forEach((a,i)=>{S("text",{class:"lane-h",x:X(i),y:18,"text-anchor":"middle"},svg,a[1]);S("text",{class:"lane-s",x:X(i),y:33,"text-anchor":"middle"},svg,a[2]);S("line",{class:"lifeline",x1:X(i),x2:X(i),y1:42,y2:H-2},svg);});
+  const items=[];
+  rows.forEach((r,ri)=>{const y=70+ri*36;
+    if(r[1]==="="){const x=xi(r[0]),w=Math.min(W-12,r[2].length*6.4+18),cx=Math.max(6+w/2,Math.min(W-6-w/2,x));const g=S("g",{class:"snote"},svg);S("rect",{x:cx-w/2,y:y-15,width:w,height:22,rx:5},g);S("text",{x:cx,y:y,"text-anchor":"middle"},g,r[2]);}
+    else{const x1=xi(r[0]),x2=xi(r[1]),dir=x2>x1?1:-1;
+      S("line",{class:"arrow",x1,y1:y,x2:x2-dir*7,y2:y},svg);S("polygon",{class:"arrowhead",points:`${x2},${y} ${x2-dir*9},${y-5} ${x2-dir*9},${y+5}`},svg);
+      const lw=r[2].length*6.3,cx=Math.max(6+lw/2,Math.min(W-6-lw/2,(x1+x2)/2));
+      S("text",{class:"alabel",x:cx,y:y-7,"text-anchor":"middle"},svg,r[2]);items.push({pts:[[x1,y],[x2,y]],label:r[2]});}
+  });
+  const layer=S("g",{},svg);
+  return {box,flow:new Flow(layer,items,{label:false,vbw:W})};
+}
+/* Graph renderer (Deep internals): nodes, links (optional waypoints and label), animated messages routed along links. */
+const NW=142,NH=52;
+function linkPts(g,l){const a=g.nodes[l[0]],b=g.nodes[l[1]];return [[a.x,a.y],...(l[2]||[]),[b.x,b.y]];}
+function route(g,from,to){
+  if(from===to)return [from];
+  const adj={};g.links.forEach(l=>{(adj[l[0]]=adj[l[0]]||[]).push(l[1]);(adj[l[1]]=adj[l[1]]||[]).push(l[0]);});
+  const prev={[from]:null},q=[from];
+  while(q.length){const n=q.shift();if(n===to)break;(adj[n]||[]).forEach(m=>{if(!(m in prev)){prev[m]=n;q.push(m);}});}
+  const path=[];let c=to;while(c!=null){path.unshift(c);c=prev[c];}return path;
+}
+function pathPts(g,nodes){let pts=[];for(let i=0;i<nodes.length-1;i++){const a=nodes[i],b=nodes[i+1];const l=g.links.find(l=>(l[0]===a&&l[1]===b)||(l[0]===b&&l[1]===a));let p=linkPts(g,l);if(l[0]!==a)p=p.slice().reverse();pts=pts.concat(i?p.slice(1):p);}return pts;}
+function drawGraph(host,g,msgs,{notes=[],aria=""}){
+  const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+  const svg=S("svg",{viewBox:`0 0 ${g.vb[0]} ${g.vb[1]}`,role:"img","aria-label":aria},box);
+  (g.frames||[]).forEach(f=>{S("rect",{class:"frame",x:f.x,y:f.y,width:f.w,height:f.h,rx:12},svg);S("text",{class:"frame-lbl",x:f.x+12,y:f.y+16},svg,f.label);});
+  const active=new Set(),hot=new Set();
+  msgs.forEach(m=>{const r=route(g,m[0],m[1]);r.forEach(n=>active.add(n));for(let i=0;i<r.length-1;i++)hot.add([r[i],r[i+1]].sort().join("|"));});
+  g.links.forEach(l=>{const p=linkPts(g,l);S("polyline",{class:"link"+(hot.has([l[0],l[1]].sort().join("|"))?" hot":""),points:p.map(q=>q.join(",")).join(" ")},svg);
+    if(l[3]){const a=l[2]?p[1]:p[0],b=l[2]?p[2]:p[p.length-1];S("text",{class:"link-lbl",x:(a[0]+b[0])/2,y:(a[1]+b[1])/2-8,"text-anchor":"middle"},svg,l[3]);}});
+  for(const id in g.nodes){const n=g.nodes[id];const G=S("g",{class:"node"+(active.has(id)?" on":" dim"),transform:`translate(${n.x-NW/2},${n.y-NH/2})`},svg);
+    S("rect",{width:NW,height:NH,rx:9},G);S("text",{class:"t",x:NW/2,y:22,"text-anchor":"middle"},G,n.t);S("text",{class:"s",x:NW/2,y:39,"text-anchor":"middle"},G,n.s);}
+  const layer=S("g",{},svg);
+  const ol=document.createElement("ol");ol.className="log";
+  ol.innerHTML=msgs.map((m,i)=>`<li data-i="${i}"><span class="n">${i+1}</span><span><span class="who">${esc(g.nodes[m[0]].t)} → ${esc(g.nodes[m[1]].t)}</span><br>${esc(m[2])}</span></li>`).join("")+notes.map(t=>`<li class="note"><span class="n">·</span><span>${esc(t)}</span></li>`).join("");
+  host.appendChild(ol);
+  const flow=new Flow(layer,msgs.map(m=>({pts:pathPts(g,route(g,m[0],m[1])),label:m[2]})),{onActive:i=>ol.querySelectorAll("li[data-i]").forEach(li=>li.classList.toggle("act",+li.dataset.i===i)),vbw:g.vb[0]});
+  flow.start();return flow;
+}
+/* Cycles a highlight through a list of elements (respects Pause); click jumps. */
+function cycler(els,show,ms=3400){let idx=0,t=null;const go=i=>{idx=i;els.forEach((e,j)=>e.classList.toggle("on",j===i));show(i);};
+  els.forEach((e,i)=>e.addEventListener("click",()=>go(i)));go(0);
+  const tick=()=>{if(!ANIM.paused)go((idx+1)%els.length);t=setTimeout(tick,ms);};if(!reduced)t=setTimeout(tick,ms);
+  return {stop(){clearTimeout(t);}};}
+const head=(host,title,hint)=>{const h=document.createElement("div");h.className="viz-head";h.innerHTML=`<h2>${title}</h2><span class="hint">${hint}</span>`;host.appendChild(h);};
+
+/* ============================================================
+   VIEW · HIGH LEVEL
+   ============================================================ */
+const ICONS={
+ power:g=>{S("path",{d:"M-11 -11 A16 16 0 1 0 11 -11"},g);S("line",{x1:0,y1:-20,x2:0,y2:-2},g);},
+ fw:g=>{S("rect",{x:-14,y:-14,width:28,height:28,rx:3},g);[-8,0,8].forEach(v=>{S("line",{x1:v,y1:-14,x2:v,y2:-20},g);S("line",{x1:v,y1:14,x2:v,y2:20},g);S("line",{x1:-14,y1:v,x2:-20,y2:v},g);S("line",{x1:14,y1:v,x2:20,y2:v},g);});},
+ select:g=>{[-12,0,12].forEach((y,i)=>{S("line",{x1:-8,y1:y,x2:18,y2:y},g);(i===0?S("circle",{class:"fillc",cx:-15,cy:y,r:3.5},g):S("circle",{cx:-15,cy:y,r:3},g));});},
+ loader:g=>{S("path",{d:"M-14 -18 H6 L14 -10 V18 H-14 Z"},g);S("path",{d:"M-6 2 H8 M3 -3 L8 2 L3 7"},g);},
+ kernel:g=>{S("circle",{r:18},g);S("circle",{r:10},g);S("circle",{class:"fillc",r:3.5},g);},
+ init:g=>{[[-17,-6],[-4,-16],[9,-6],[-4,6]].forEach(([x,y])=>S("rect",{x,y,width:11,height:10,rx:2},g));},
+ ready:g=>{S("rect",{x:-20,y:-16,width:40,height:26,rx:3},g);S("circle",{cx:0,cy:-6,r:4},g);S("path",{d:"M-7 6 A7 6 0 0 1 7 6"},g);S("line",{x1:-8,y1:17,x2:8,y2:17},g);}
+};
+const HighView={
+  label:"High level",short:"The big picture",groups:false,
+  desc:"The seven-stage relay from power button to sign-in, in plain language. Click a stage, or a symptom in the troubleshooter to see where a boot went wrong.",
+  steps(){return STAGES.map(s=>s.plain.label);},
+  render(host){
+    const si=state.i,X=i=>70+i*143,fail=state.trouble!=null?SI[TROUBLE[state.trouble][1]]:-1;
+    head(host,"From power button to sign-in in seven handoffs","Each stage wakes the next and hands over the baton");
+    host.insertAdjacentHTML("beforeend",`<p class="hl-summary">Firmware wakes the hardware and picks a device; a boot loader starts the operating system; the OS starts its services and shows the sign-in screen. The first half is the same for every OS.</p>`);
+    const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+    const svg=S("svg",{viewBox:"0 0 1000 205",role:"img","aria-label":`Seven boot stages, now at ${STAGES[si].plain.title}`},box);
+    S("line",{class:"link",x1:X(0),y1:95,x2:X(6),y2:95},svg);
+    S("line",{class:"link hot",x1:X(0),y1:95,x2:X(si),y2:95,style:`--c:${STAGES[si].color}`},svg);
+    S("text",{class:"st-s",x:(X(0)+X(2))/2,y:30,"text-anchor":"middle"},svg,"same for every OS");
+    S("text",{class:"st-s",x:(X(3)+X(6))/2,y:30,"text-anchor":"middle"},svg,"different per OS");
+    S("line",{class:"link",x1:(X(2)+X(3))/2,y1:20,x2:(X(2)+X(3))/2,y2:170,"stroke-dasharray":"4 4"},svg);
+    STAGES.forEach((st,i)=>{
+      const g=S("g",{class:"station "+(i===fail?"fail":i<si?"past":i===si?"cur":"future"),transform:`translate(${X(i)},95)`,style:`--c:${st.color}`,tabindex:"0",role:"button","aria-label":`Stage ${i+1}: ${st.plain.title}`},svg);
+      S("circle",{class:"st-bg",r:34},g);ICONS[st.id](S("g",{class:"ico"},g));
+      S("text",{class:"st-n",y:-44,"text-anchor":"middle"},g,String(i+1));
+      S("text",{class:"st-l",y:58,"text-anchor":"middle"},g,st.plain.label);
+      S("text",{class:"st-s",y:75,"text-anchor":"middle"},g,st.plain.sub);
+      g.addEventListener("click",()=>{state.trouble=null;go(i);});
+      g.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();state.trouble=null;go(i);}});
+    });
+    const layer=S("g",{style:`--c:${STAGES[si].color}`},svg);
+    this.flow=new Flow(layer,[{pts:[[X(0),95],[X(si)+.01,95]],label:STAGES[si].plain.title.toLowerCase()}],{vbw:1000});this.flow.start();
+    host.insertAdjacentHTML("beforeend",`<h3 class="sub">Where did it stop?</h3><p class="subtext">Pick what you saw. The stage that failed is marked with a dashed red ring above.</p>`);
+    const tb=document.createElement("div");tb.className="trouble";
+    tb.innerHTML=TROUBLE.map((t,i)=>`<button type="button" class="tbtn${state.trouble===i?" on":""}" data-trouble="${i}">${esc(t[0])}</button>`).join("");
+    host.appendChild(tb);
+    if(state.trouble!=null){const t=TROUBLE[state.trouble];host.insertAdjacentHTML("beforeend",`<div class="tres"><b>Stage ${SI[t[1]]+1}: ${esc(STAGES[SI[t[1]]].plain.title)}.</b> ${esc(t[2])}</div>`);}
+  },
+  notes(n){const st=STAGES[state.i],p=st.plain;n.style.setProperty("--c",st.color);
+    return `<p class="kicker">Stage ${state.i+1} of 7 · High level</p><h2>${esc(p.title)}</h2><p class="sum">${esc(p.line)}</p>
+      ${p.text.map(t=>`<p>${esc(t)}</p>`).join("")}
+      <div class="say"><h3>Everyday comparison</h3><p>${esc(p.analogy)}</p></div>
+      <h3>Remember</h3><p>${esc(p.remember)}</p>`;},
+  stop(){this.flow&&this.flow.stop();}
+};
+
+/* ============================================================
+   VIEW · SIDE BY SIDE
+   ============================================================ */
+const SideView={
+  label:"Side by side",short:"Compare stage by stage",groups:true,
+  desc:"Every system in the group going through the same stage at the same time. Firmware covers stages 1–4, operating systems 4–7, machine types all seven, network boot 3–6.",
+  steps(){return GROUPS[state.group].stages.map(id=>STAGES[SI[id]].short);},
+  render(host){
+    const G=GROUPS[state.group],st=STAGES[SI[G.stages[state.i]]];
+    head(host,`${esc(G.name)} · ${SI[st.id]+1}. ${esc(st.name)}`,esc(st.q));
+    const grid=document.createElement("div");grid.className="pgrid";host.appendChild(grid);
+    this.flows=G.items.map(id=>{const it=ITEMS[id],ph=it.ph[st.id];
+      const card=document.createElement("div");card.className="pcard";card.style.setProperty("--c",it.color);
+      card.innerHTML=`<div class="pc-head"><b>${esc(it.name)}</b><span>${esc(it.full)}</span></div>`;
+      const d=seqDiagram(it.actors,ph.s,`${it.name}: ${st.name}`);card.appendChild(d.box);
+      card.insertAdjacentHTML("beforeend",`<p class="pc-text">${esc(ph.t)}</p>`);grid.appendChild(card);d.flow.start();return d.flow;});
+  },
+  notes(n){const G=GROUPS[state.group],st=STAGES[SI[G.stages[state.i]]];n.style.setProperty("--c",st.color);
+    return `<p class="kicker">Stage ${SI[st.id]+1} · ${esc(G.name)}</p><h2>${esc(st.name)}</h2><p class="sum">${esc(st.q)}</p><p>${esc(st.text)}</p>
+      <div class="say"><h3>The difference in this group</h3><p>${esc(G.diff[st.id])}</p></div>`;},
+  stop(){(this.flows||[]).forEach(f=>f.stop());}
+};
+
+/* ============================================================
+   VIEW · BOOT ORDER SIMULATOR
+   ============================================================ */
+const SimView={
+  label:"Boot order",short:"Simulator: what boots?",groups:false,
+  desc:"Change the firmware mode, Secure Boot, the disk, a USB stick and one-time choices, and watch the firmware's decision step by step. The steps above load ready-made scenarios.",
+  steps(){return PRESETS.map(p=>p.name);},
+  render(host){
+    if(state.simFor!==state.i){state.sim={...PRESETS[state.i].c};state.simFor=state.i;}
+    head(host,state.simCustom?"Custom scenario":esc(PRESETS[state.i].name),"Rules: one-time choice → saved order → fallback");
+    const c=state.sim,L=c.mode==="legacy";
+    const wrap=document.createElement("div");wrap.className="sim";host.appendChild(wrap);
+    wrap.innerHTML=`<form id="simform" onsubmit="return false">
+      <fieldset><legend>Firmware</legend>
+        <label><input type="radio" name="mode" value="uefi" ${c.mode==="uefi"?"checked":""}> UEFI</label>
+        <label><input type="radio" name="mode" value="legacy" ${L?"checked":""}> Legacy BIOS (CSM)</label>
+        <label><input type="checkbox" name="sb" ${c.sb&&!L?"checked":""} ${L?"disabled":""}><span>Secure Boot</span></label></fieldset>
+      <fieldset><legend>Internal disk</legend>
+        <select name="disk" aria-label="Internal disk"><option value="gpt" ${c.disk==="gpt"?"selected":""}>GPT · Windows installed for UEFI</option><option value="mbr" ${c.disk==="mbr"?"selected":""}>MBR · Windows installed for legacy BIOS</option><option value="empty" ${c.disk==="empty"?"selected":""}>Empty, new disk</option></select>
+        <label><input type="checkbox" name="winEntry" ${c.winEntry?"checked":""} ${L?"disabled":""}><span>Windows entry in UEFI NVRAM</span></label></fieldset>
+      <fieldset><legend>USB stick</legend>
+        <select name="usb" aria-label="USB stick"><option value="none" ${c.usb==="none"?"selected":""}>Not inserted</option><option value="both" ${c.usb==="both"?"selected":""}>Installer (UEFI + legacy)</option><option value="uefi" ${c.usb==="uefi"?"selected":""}>UEFI only</option><option value="legacy" ${c.usb==="legacy"?"selected":""}>Legacy only</option></select>
+        <label><input type="checkbox" name="usbSigned" ${c.usbSigned?"checked":""}><span>Loader signed for Secure Boot</span></label>
+        <label><input type="checkbox" name="usbFirst" ${c.usbFirst?"checked":""}><span>USB above disk in boot order</span></label></fieldset>
+      <fieldset><legend>One-time choice</legend>
+        <select name="once" aria-label="One-time choice"><option value="none" ${c.once==="none"?"selected":""}>None</option><option value="f12" ${c.once==="f12"?"selected":""}>Boot menu (F12): pick USB</option><option value="bootnext" ${c.once==="bootnext"?"selected":""}>BootNext = USB (set by the OS)</option></select></fieldset>
+      <fieldset><legend>Network</legend>
+        <label><input type="checkbox" name="net" ${c.net?"checked":""}><span>Network boot in the order</span></label>
+        <label><input type="checkbox" name="pxe" ${c.pxe?"checked":""}><span>A PXE server answers</span></label></fieldset>
+    </form><div><ol class="trace" id="trace"></ol><div class="outcome" id="outcome"></div></div>`;
+    const form=wrap.querySelector("#simform");
+    form.addEventListener("change",()=>{const f=new FormData(form);
+      state.sim={mode:f.get("mode"),sb:!!f.get("sb"),disk:f.get("disk"),winEntry:!!f.get("winEntry"),usb:f.get("usb"),usbSigned:!!f.get("usbSigned"),usbFirst:!!f.get("usbFirst"),once:f.get("once"),net:!!f.get("net"),pxe:!!f.get("pxe")};
+      if(state.sim.mode==="uefi"&&c.mode==="legacy"){state.sim.sb=true;state.sim.winEntry=true;}
+      state.simCustom=true;this.stop();const host2=document.getElementById("viz");host2.innerHTML="";this.render(host2);document.getElementById("notes").innerHTML=this.notes(document.getElementById("notes"));});
+    this.play(wrap);
+  },
+  play(wrap){
+    const r=simulate(state.sim),ol=wrap.querySelector("#trace"),out=wrap.querySelector("#outcome");
+    const M={ok:"✓",skip:"✗",info:"·"};
+    ol.innerHTML=r.T.map(s=>`<li class="${s.k}"><span class="m">${M[s.k]}</span><span>${esc(s.t)}</span></li>`).join("");
+    out.className="outcome"+(r.res?"":" err");
+    out.innerHTML=r.res?`Boots: <b>${esc(r.res)}</b>`:`Fails: <b>"${esc(r.err)}"</b>`;
+    const lis=[...ol.children];let i=0;
+    const show=()=>{lis.forEach((li,j)=>{li.classList.toggle("shown",j<=i);li.classList.toggle("now",j===i);});out.classList.toggle("shown",i>=lis.length-1);};
+    if(reduced){i=lis.length-1;show();return;}
+    show();
+    const tick=()=>{if(!ANIM.paused){i=i>=lis.length-1+2?0:i+1;show();}this.timer=setTimeout(tick,1300);};
+    this.timer=setTimeout(tick,1300);
+  },
+  notes(n){n.style.setProperty("--c","var(--accent)");const r=simulate(state.sim);
+    return `<p class="kicker">Boot order · ${state.simCustom?"custom":"scenario "+(state.i+1)+" of "+PRESETS.length}</p><h2>${state.simCustom?"Your scenario":esc(PRESETS[state.i].name)}</h2>
+      <p class="sum">${state.simCustom?"You changed the settings. The trace shows how the firmware decides.":esc(PRESETS[state.i].t)}</p>
+      <div class="say"><h3>Result</h3><p>${r.res?"Boots "+esc(r.res)+".":"Fails with “"+esc(r.err)+"”."}</p></div>
+      <h3>UEFI order of precedence</h3><ol><li>A one-time choice: the boot menu key, or BootNext set by the OS.</li><li>BootOrder: the saved list of NVRAM entries, top to bottom. Secure Boot can veto any entry.</li><li>Fallback: \\EFI\\BOOT\\BOOTX64.EFI on removable media, then fixed disks.</li><li>Otherwise: "No bootable device".</li></ol>
+      <h3>Legacy BIOS order</h3><ol><li>Boot menu choice.</li><li>The device list in CMOS settings: the first device whose sector 0 ends in 0x55AA wins.</li></ol>
+      <p>A disk set up for UEFI (GPT) doesn't boot in legacy mode, and an MBR legacy install doesn't boot in UEFI mode. That mismatch is the classic cause of "it worked yesterday" after a firmware reset.</p>`;},
+  stop(){clearTimeout(this.timer);}
+};
+
+/* ============================================================
+   VIEW · DISK LAYOUT
+   ============================================================ */
+const DiskView={
+  label:"Disk layout",short:"What the firmware reads",groups:false,
+  desc:"The bytes and files firmware actually reads: the classic MBR sector, the GPT layout, and the files inside the EFI System Partition. Click any field or file.",
+  steps(){return DISK.map(d=>d.name);},
+  render(host){
+    const d=DISK[state.i];head(host,esc(d.name),esc(d.sum));
+    if(d.layouts){
+      host.insertAdjacentHTML("beforeend",`<div class="blegend"><span><i class="code"></i>boot code / loaders</span><span><i class="table"></i>partition table</span><span><i class="sig"></i>signature</span><span><i class="meta"></i>metadata</span><span><i class="data"></i>other data</span></div>`);
+      const els=[],fs=[];
+      d.layouts.forEach(L=>{host.insertAdjacentHTML("beforeend",`<div class="barlbl">${esc(L.lbl)}</div>`);
+        const row=document.createElement("div");row.className="brow";host.appendChild(row);
+        L.f.forEach(f=>{const el=document.createElement("button");el.type="button";el.className="bf "+f[2];
+          el.style.flexGrow=typeof f[1]==="number"?Math.max(1,Math.log2(f[1])).toFixed(2):(f[1]==="n"?10:7);
+          el.innerHTML=`<b>${esc(f[0])}</b><small>${typeof f[1]==="number"?f[1]+" B":(f[1]==="n"?"rest of disk":esc(f[1]))}</small>`;row.appendChild(el);els.push(el);fs.push(f);});});
+      const det=document.createElement("div");det.className="bdetail";det.setAttribute("aria-live","polite");host.appendChild(det);
+      this.h=cycler(els,i=>{const f=fs[i];det.innerHTML=`<b>${esc(f[0])}</b> <span class="bsz">${typeof f[1]==="number"?f[1]+" bytes":(f[1]==="n"?"variable":esc(f[1]))}</span><p>${esc(f[3])}</p>`;});
+    } else {
+      const ul=document.createElement("ul");ul.className="tree";
+      ul.innerHTML=d.tree.map(t=>`<li class="${t[2]}"><span class="p">${esc(t[0])}</span><span class="d">${t[1]?`<b>${esc(t[1])}</b> · `:""}${esc(t[3])}</span></li>`).join("");
+      host.appendChild(ul);
+      host.insertAdjacentHTML("beforeend",`<h3 class="sub">Boot entries in firmware NVRAM</h3><div class="nvram">${esc(d.nvram)}</div>`);
+      this.h=cycler([...ul.children],()=>{});
+    }
+  },
+  notes(n){const d=DISK[state.i];n.style.setProperty("--c","var(--accent)");
+    return `<p class="kicker">Disk layout · ${state.i+1} of ${DISK.length}</p><h2>${esc(d.name)}</h2><p class="sum">${esc(d.sum)}</p>
+      <div class="facts">${d.facts.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div>${d.text.map(t=>`<p>${esc(t)}</p>`).join("")}`;},
+  stop(){this.h&&this.h.stop();}
+};
+
+/* ============================================================
+   VIEW · TIMELINE
+   ============================================================ */
+const TimeView={
+  label:"Timeline",short:"Where the seconds go",groups:true,
+  desc:"Typical time spent in each stage, as a waterfall. Switch between fitting each bar and a shared scale to see how different machines really are.",
+  steps(){return null;},
+  render(host){
+    const G=GROUPS[state.group];
+    head(host,`${esc(G.name)} · how long each stage takes`,"Illustrative typical times");
+    const tot=id=>G.stages.reduce((a,s)=>a+(TIMES[id][s]||0),0),max=Math.max(...G.items.map(tot));
+    const fmt=s=>s>=60?(s/60).toFixed(s>=600?0:1)+" min":s>=10?Math.round(s)+" s":s.toFixed(1)+" s";
+    host.insertAdjacentHTML("beforeend",`<div class="seg-toggle" role="group" aria-label="Scale"><button type="button" data-scale="fit" class="${state.scale==="fit"?"on":""}">Fit each bar</button><button type="button" data-scale="same" class="${state.scale==="same"?"on":""}">Same scale</button></div>
+      <div class="tl-legend">${G.stages.map(s=>`<span style="--sc:${STAGES[SI[s]].color}"><i></i>${SI[s]+1}. ${esc(STAGES[SI[s]].short)}</span>`).join("")}</div>`+
+      G.items.map(id=>{const T=tot(id),scale=state.scale==="same"?T/max:1;
+        return `<div class="tl-row"><div class="nm">${esc(ITEMS[id].name)}<small>${esc(ITEMS[id].full)}</small></div><div><div class="tl-bar" style="width:${Math.max(2,scale*100).toFixed(2)}%">${G.stages.map(s=>{const v=TIMES[id][s]||0;return `<div class="tl-seg" style="--sc:${STAGES[SI[s]].color};width:${(v/T*100).toFixed(2)}%" title="${esc(STAGES[SI[s]].name)}: ${fmt(v)}">${v/T>.08?fmt(v):""}</div>`;}).join("")}<span class="tl-sweep"></span></div></div><div class="tot">${fmt(T)}</div></div>`;}).join(""));
+    host.querySelectorAll("[data-scale]").forEach(b=>b.addEventListener("click",()=>{state.scale=b.dataset.scale;render();}));
+  },
+  notes(n){const G=GROUPS[state.group];n.style.setProperty("--c","var(--accent)");
+    const notes={fw:`Legacy BIOS POSTs are slow because they test and scan everything in 16-bit mode. UEFI with Fast Boot skips most checks. coreboot is the quickest because it does the least.`,
+      os:`The OS share is dominated by starting services. Measure it: systemd-analyze blame on Linux, Windows Performance Recorder or the Event Viewer boot events on Windows.`,
+      hw:`Use "Same scale": a server spends minutes in firmware alone, mostly memory training and add-in card ROMs, while a desktop or VM is done in seconds. That's why servers are rebooted rarely and patched in rolling waves.`,
+      net:`TFTP makes classic PXE's loader stage the slowest: every 512-byte block waits for an acknowledgement. iPXE and HTTP Boot fetch the same files over TCP in a fraction of the time. iSCSI pays instead at kernel start, when the OS must reconnect to its disk.`};
+    return `<p class="kicker">Timeline · ${esc(G.name)}</p><h2>Where the seconds go</h2><p class="sum">${esc(notes[state.group])}</p>
+      <h3>Read the bars</h3><p>Each colour is one stage. The thin line sweeping across is just a reminder that these happen one after another; the numbers are typical, not measured on your machine.</p>`;},
+  stop(){}
+};
+
+/* ============================================================
+   VIEW · COMPARE
+   ============================================================ */
+const CompareView={
+  label:"Compare",short:"The whole group in a table",groups:true,
+  desc:"Every system in the group against the same questions, with a rule of thumb.",
+  steps(){return null;},
+  render(host){
+    const G=GROUPS[state.group];head(host,`${esc(G.name)} · ${esc(G.q)}`,"Columns are systems, rows are the same questions");
+    const box=document.createElement("div");box.className="scroll-x";
+    box.innerHTML=`<table class="ctable"><thead><tr><th></th>${G.items.map(id=>`<th scope="col" style="--c:${ITEMS[id].color}">${esc(ITEMS[id].name)}<small>${esc(ITEMS[id].full)}</small></th>`).join("")}</tr></thead><tbody>`+
+      COMPARE[state.group].map(([k,l])=>`<tr><th scope="row">${l}</th>${G.items.map(id=>`<td>${esc(CMP[id][k])}</td>`).join("")}</tr>`).join("")+`</tbody></table>`;
+    host.appendChild(box);host.insertAdjacentHTML("beforeend",`<div class="verdict"><b>Rule of thumb.</b> ${esc(G.verdict)}</div>`);
+  },
+  notes(n){const G=GROUPS[state.group];n.style.setProperty("--c","var(--accent)");
+    return `<p class="kicker">Compare · group ${GROUP_IDS.indexOf(state.group)+1} of ${GROUP_IDS.length}</p><h2>${esc(G.name)}</h2><p class="sum">${esc(G.q)}</p><div class="say"><h3>Rule of thumb</h3><p>${esc(G.verdict)}</p></div>
+      <h3>Stages covered</h3><p>${G.stages.map(s=>`${SI[s]+1}. ${esc(STAGES[SI[s]].name)}`).join(" · ")}</p>`;},
+  stop(){}
+};
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+/* ============================================================
+   DEPTH 3 · DEEP INTERNALS
+   Topics per group. kind "graph" (a DGRAPH id + messages) or "seq" (actors + rows).
+   stage = which boot stage the topic belongs to (sets the colour).
+   ============================================================ */
+const DGRAPH={
+ uefi:{vb:[1060,320],frames:[{x:20,y:20,w:1020,h:120,label:"UEFI phases (PI specification)"}],
+  nodes:{sec:{x:130,y:80,t:"SEC",s:"security / first code"},pei:{x:330,y:80,t:"PEI",s:"pre-EFI init"},dxe:{x:530,y:80,t:"DXE",s:"driver execution"},bds:{x:730,y:80,t:"BDS",s:"boot device selection"},tsl:{x:930,y:80,t:"TSL → RT",s:"OS loader, then runtime"},
+   car:{x:130,y:250,t:"Cache as RAM",s:"stack before DRAM works"},mem:{x:330,y:250,t:"Memory init",s:"vendor FSP / MRC"},drv:{x:530,y:250,t:"Drivers + protocols",s:"PCI, NVMe, USB, GOP"},nv:{x:730,y:250,t:"NVRAM variables",s:"Boot####, BootOrder"},ebs:{x:930,y:250,t:"ExitBootServices",s:"OS owns the machine"}},
+  links:[["sec","pei"],["pei","dxe",null,"HOB list"],["dxe","bds"],["bds","tsl"],["sec","car"],["pei","mem"],["dxe","drv"],["bds","nv"],["tsl","ebs"]]},
+ sb:{vb:[1060,350],frames:[],
+  nodes:{pk:{x:130,y:80,t:"PK",s:"Platform Key · OEM"},kek:{x:330,y:80,t:"KEK",s:"Microsoft + OEM"},db:{x:560,y:80,t:"db: allowed",s:"MS Windows CA, MS UEFI CA"},dbx:{x:330,y:260,t:"dbx: revoked",s:"hashes + old certs"},
+   bootmgr:{x:830,y:80,t:"bootmgfw.efi",s:"signed: Windows CA"},shim:{x:830,y:190,t:"shimx64.efi",s:"signed: MS UEFI CA"},grub:{x:830,y:300,t:"GRUB + kernel",s:"signed: distro key"},mok:{x:560,y:300,t:"MOK list",s:"keys you enrol"}},
+  links:[["pk","kek",null,"authorises"],["kek","db"],["kek","dbx"],["dbx","db",null,"overrides"],["db","bootmgr"],["db","shim"],["shim","grub"],["mok","shim"]]},
+ measured:{vb:[1060,320],frames:[],
+  nodes:{crtm:{x:130,y:80,t:"Firmware (CRTM)",s:"measures itself first"},opt:{x:330,y:80,t:"Option ROMs, config",s:"cards, settings"},bl:{x:530,y:80,t:"Boot loader",s:"bootmgr / shim + GRUB"},kern:{x:730,y:80,t:"Kernel + initrd",s:"or Windows boot files"},unlock:{x:930,y:80,t:"Disk unlocked",s:"no password typed"},
+   log:{x:330,y:260,t:"Event log",s:"what was measured"},tpm:{x:530,y:260,t:"TPM",s:"PCRs 0–23"},vk:{x:730,y:260,t:"Disk key",s:"sealed to PCR values"}},
+  links:[["crtm","opt"],["opt","bl"],["bl","kern"],["crtm","tpm"],["opt","tpm"],["bl","tpm"],["kern","tpm"],["tpm","log"],["tpm","vk"],["vk","unlock"]]},
+ systemd:{vb:[1060,340],frames:[],
+  nodes:{localfs:{x:130,y:80,t:"local-fs.target",s:"mounts from fstab"},sysinit:{x:330,y:80,t:"sysinit.target",s:"udev, journald, swap"},basic:{x:530,y:80,t:"basic.target",s:"sockets, timers"},sshd:{x:730,y:80,t:"sshd.service",s:"After=network.target"},
+   net:{x:530,y:210,t:"network-online",s:"addresses configured"},web:{x:730,y:210,t:"nginx.service",s:"After=network-online"},multi:{x:930,y:145,t:"multi-user.target",s:"servers stop here"},gdm:{x:930,y:290,t:"gdm.service",s:"display manager"},graph:{x:700,y:300,t:"graphical.target",s:"default on desktops"}},
+  links:[["localfs","sysinit"],["sysinit","basic"],["basic","sshd"],["basic","net"],["net","web"],["sshd","multi"],["web","multi"],["multi","gdm"],["gdm","graph"]]},
+ bmc:{vb:[1060,370],frames:[{x:870,y:20,w:180,h:330,label:"Host"}],
+  nodes:{admin:{x:120,y:190,t:"Admin",s:"browser / Redfish client"},mgmt:{x:320,y:190,t:"Management LAN",s:"separate network"},bmc:{x:540,y:190,t:"BMC",s:"small ARM chip, own OS"},
+   kvm:{x:760,y:60,t:"Video + USB",s:"virtual KVM, media"},psu:{x:760,y:145,t:"Power control",s:"on, off, cycle"},fwflash:{x:760,y:230,t:"Firmware flash",s:"BIOS settings, updates"},sensors:{x:760,y:315,t:"Sensors + fans",s:"I2C / SMBus"},host:{x:960,y:145,t:"Host CPUs",s:"the actual server"}},
+  links:[["admin","mgmt"],["mgmt","bmc",null,"HTTPS"],["bmc","kvm"],["bmc","psu"],["bmc","fwflash"],["bmc","sensors"],["kvm","host"],["psu","host"],["fwflash","host"]]}
+};
+
+const DEEPT={
+ fw:[
+  {id:"modes",title:"CPU modes: from 1978 to 64-bit",stage:"fw",items:["bios","uefi"],kind:"seq",
+   sum:`Every x86 PC still wakes up as a 16-bit 8086 and has to climb to 64-bit mode step by step.`,
+   actors:[["rm","Real mode","16-bit · 1 MB"],["pm","Protected mode","32-bit"],["lm","Long mode","64-bit"],["os","OS kernel",""]],
+   rows:[["rm","=","reset: CS:IP = F000:FFF0, 16-bit"],["rm","=","legacy BIOS stays here (INT services)"],["rm","pm","UEFI SEC: load GDT, set CR0.PE"],["pm","=","PEI: flat 32-bit memory"],["pm","lm","page tables, EFER.LME, CR0.PG"],["lm","=","DXE, BDS and boot loader run 64-bit"],["lm","os","kernel gets memory map + ACPI tables"]],
+   text:[`For backwards compatibility, an x86 CPU comes out of reset in real mode: 16-bit registers, segment:offset addressing and only 1 MB of memory, as on the 1978 8086. Its first instruction sits just below 4 GB, where the firmware chip is mapped.`,
+    `Legacy BIOS stays in real mode, so BIOS boot loaders (and Linux's own setup code) have to switch modes themselves. UEFI firmware does it within its first few instructions: load a descriptor table, enable protected mode, build page tables and enable long mode.`,
+    `Intel proposed removing these legacy modes entirely (the X86S idea) but shelved it in 2024, so every new PC still walks this path, usually in a few microseconds.`],
+   facts:[`reset vector 0xFFFFFFF0`,`real → protected → long`,`CR0 / EFER`,`X86S (shelved)`],
+   say:`x86 CPUs start in 16-bit real mode; UEFI switches to protected and then 64-bit long mode almost immediately, while legacy BIOS stays in real mode.`},
+  {id:"uefiphases",title:"UEFI phases in detail",stage:"fw",items:["uefi"],kind:"graph",g:"uefi",
+   sum:`SEC, PEI, DXE, BDS: how UEFI firmware bootstraps itself before your boot loader runs.`,
+   m:[["sec","car","stack in CPU cache"],["sec","pei","hand over"],["pei","mem","train DRAM (vendor FSP)"],["pei","dxe","HOB list: memory map, CPU info"],["dxe","drv","load drivers, install protocols"],["dxe","bds","all drivers dispatched"],["bds","nv","read Boot#### and BootOrder"],["bds","tsl","start the OS loader"],["tsl","ebs","ExitBootServices: runtime services only"]],
+   text:[`SEC runs with no usable RAM, so it uses the CPU cache as temporary memory. PEI's main job is memory training, usually done by vendor code (Intel FSP, AMD AGESA). It passes what it learned to the next phase as a list of hand-off blocks (HOBs).`,
+    `DXE is the heart of UEFI: a dispatcher loads dozens of drivers that publish "protocols", standard interfaces such as block I/O, file system, network and the graphics output protocol (GOP). Boot loaders later use these same protocols.`,
+    `BDS reads the NVRAM boot variables and starts the chosen EFI application. When the OS calls ExitBootServices, the boot-time drivers disappear and only runtime services remain: time, NVRAM variables and reset. UEFI still keeps a hidden helper in System Management Mode (SMM) that runs alongside the OS.`],
+   facts:[`SEC · PEI · DXE · BDS`,`HOBs`,`protocols`,`ExitBootServices`,`SMM`],
+   say:`UEFI runs SEC (cache as RAM), PEI (memory init), DXE (drivers and protocols) and BDS (boot entries), then hands over at ExitBootServices.`},
+  {id:"secureboot",title:"The Secure Boot key hierarchy",stage:"loader",items:["uefi"],kind:"graph",g:"sb",
+   sum:`Who is allowed to sign what, and why one revoked hash beats every allowed key.`,
+   m:[["pk","kek","PK authorises KEK changes"],["kek","db","KEK authorises db and dbx updates"],["db","bootmgr","Windows CA → allowed"],["db","shim","Microsoft UEFI CA → allowed"],["shim","grub","distro key or MOK → allowed"],["mok","shim","your own enrolled keys"],["dbx","db","revoked? refused, even if db allows"]],
+   text:[`The Platform Key (PK) belongs to the device maker and controls the Key Exchange Keys (KEK), which control two databases: db (allowed signers and hashes) and dbx (forbidden ones). Firmware runs an EFI file only if it's signed by something in db and not listed in dbx.`,
+    `Almost every PC trusts two Microsoft certificates: one for Windows, one for third parties. Linux distributions get shim signed with the third-party one, and shim then trusts the distribution's key plus any Machine Owner Keys (MOK) you enrol with mokutil.`,
+    `In 2023 the BlackLotus bootkit used an old, vulnerable but validly signed Windows boot manager. Blocking it meant adding to dbx and moving to new "2023" certificates, a migration made more urgent because Microsoft's original 2011 certificates expire during 2026.`],
+   facts:[`PK → KEK → db / dbx`,`shim + MOK`,`BlackLotus`,`2011 → 2023 certificates`],
+   say:`Secure Boot runs only EFI binaries signed by a key in db and not revoked in dbx; PK and KEK control who may change those lists.`}
+ ],
+ os:[
+  {id:"measured",title:"Measured boot and automatic disk unlock",stage:"loader",items:["windows","linux"],kind:"graph",g:"measured",
+   sum:`Each stage records a hash of the next in the TPM, and the disk key is only released if the record matches.`,
+   m:[["crtm","tpm","extend PCR 0: firmware"],["opt","tpm","extend PCRs 1–3: config, option ROMs"],["bl","tpm","extend PCR 4: boot loader"],["kern","tpm","extend PCRs 8–11: kernel, initrd"],["tpm","log","every measurement is logged"],["tpm","vk","PCRs match the seal? release the key"],["vk","unlock","decrypt the disk silently"]],
+   text:[`Secure Boot decides whether something may run; measured boot records what actually ran. Before handing over, each stage hashes the next one and "extends" a Platform Configuration Register in the TPM: new value = hash(old value + measurement). It can only be extended, never set, so the final values summarise the whole chain.`,
+    `BitLocker and systemd-cryptenroll seal the disk key to chosen PCRs, typically PCR 7 (the Secure Boot state) and, for Windows, PCR 11. If the boot chain changes, the TPM refuses to release the key and you're asked for the recovery key.`,
+    `That's why a firmware update or a Secure Boot change sometimes triggers a BitLocker recovery prompt. The event log lets software check exactly which measurement changed.`],
+   facts:[`TPM PCRs`,`extend, never set`,`PCR 7 = Secure Boot state`,`seal / unseal`],
+   say:`Measured boot extends TPM PCRs with hashes of each boot stage, and BitLocker or LUKS keys sealed to those PCRs unlock only if the chain is unchanged.`},
+  {id:"smp",title:"Starting the other CPU cores",stage:"kernel",items:["windows","linux"],kind:"seq",
+   sum:`Only one core boots the machine. The kernel wakes the rest, and each one starts life in 16-bit mode.`,
+   actors:[["k","Kernel","on the boot core (BSP)"],["bsp","Boot core","local APIC"],["ap","Other cores","halted (APs)"]],
+   rows:[["k","=","read ACPI MADT: list of all CPUs"],["k","bsp","copy startup trampoline below 1 MB"],["bsp","ap","INIT IPI"],["bsp","ap","STARTUP IPI → trampoline address"],["ap","=","16-bit → 64-bit, load kernel page tables"],["ap","k","core online, joins the scheduler"]],
+   text:[`Firmware and boot loader run on one core, the bootstrap processor. All other cores (application processors) wait halted. The kernel finds them in the ACPI MADT table and wakes each one with inter-processor interrupts: INIT, then STARTUP with the address of a small trampoline.`,
+    `Every woken x86 core starts in real mode at that trampoline, just like the first one did, and climbs to 64-bit mode before jumping into the kernel. Linux 6.5 added parallel bring-up, so dozens of cores no longer start strictly one after another.`,
+    `ARM systems use a firmware call (PSCI CPU_ON) instead of interrupts.`],
+   facts:[`BSP and APs`,`ACPI MADT`,`INIT-SIPI-SIPI`,`PSCI on ARM`],
+   say:`The boot core wakes the other cores with INIT and STARTUP IPIs; each starts in real mode at a trampoline and switches to 64-bit before joining the scheduler.`},
+  {id:"initramfs",title:"From initramfs to the real root",stage:"kernel",items:["linux"],kind:"seq",
+   sum:`How Linux finds, unlocks and switches to the disk that holds the real system.`,
+   actors:[["k","Kernel",""],["init","initrd /init","systemd or busybox"],["udev","udev","device events"],["crypt","cryptsetup","LUKS"],["root","Real root","/sysroot"]],
+   rows:[["k","=","unpack initramfs (cpio) into RAM"],["k","init","run /init"],["init","udev","load modules: nvme, dm-crypt"],["udev","=","disk appears: /dev/nvme0n1p3"],["init","crypt","unlock LUKS: TPM, password or FIDO2"],["crypt","root","mount /dev/mapper/root on /sysroot"],["init","root","switch_root → exec /sbin/init"]],
+   text:[`A general-purpose kernel can't contain every storage driver, so the initramfs, a compressed archive the boot loader loaded next to the kernel, provides a tiny temporary root file system with just enough tools.`,
+    `Its /init (systemd on most distributions, sometimes a busybox script built by dracut or mkinitcpio) loads storage modules, waits for the root disk, unlocks it if encrypted, and mounts it.`,
+    `switch_root then deletes the initramfs from memory, makes the real disk the root and runs its /sbin/init, which becomes PID 1 for the rest of the uptime. If any step fails you land in the initramfs emergency shell.`],
+   facts:[`cpio archive`,`dracut / mkinitcpio`,`LUKS unlock`,`switch_root`],
+   say:`The initramfs is a temporary root in RAM that loads storage drivers, unlocks and mounts the real root, then switch_roots to it.`},
+  {id:"elam",title:"Windows boot drivers and ELAM",stage:"kernel",items:["windows"],kind:"seq",
+   sum:`How Windows decides which drivers load when, and lets antivirus vet them first.`,
+   actors:[["wl","winload","OS loader"],["reg","SYSTEM hive","Services key"],["k","Kernel",""],["elam","ELAM driver","antivirus"],["drv","Drivers","storage, file system…"]],
+   rows:[["wl","reg","find drivers with Start = 0 (boot)"],["wl","=","load them into memory, don't run them"],["wl","k","hand over the loader block"],["k","elam","initialise the ELAM driver first"],["elam","drv","classify each: good / bad / unknown"],["k","drv","initialise boot drivers, by group"],["k","=","then Start = 1 (system) drivers"],["k","=","later: services.exe, Start = 2 (auto)"]],
+   text:[`Every driver and service has a Start value in the registry: 0 boot, 1 system, 2 automatic, 3 manual, 4 disabled. Boot-start drivers, such as the storage and file-system drivers needed to read the disk, are loaded by winload before the kernel even runs.`,
+    `An Early Launch Anti-Malware driver, signed specially by Microsoft, initialises before any other boot driver and reports whether each one is known good, known bad or unknown. Policy decides whether bad ones are skipped.`,
+    `Order within each Start value follows ServiceGroupOrder. Enabling boot logging (bcdedit /set bootlog yes) writes ntbtlog.txt listing every driver as it loads.`],
+   facts:[`Start values 0–4`,`ELAM`,`ServiceGroupOrder`,`ntbtlog.txt`],
+   say:`Winload preloads Start=0 boot drivers; the kernel runs an ELAM driver first to classify them, then initialises boot, system and later automatic drivers.`},
+  {id:"systemd",title:"systemd's dependency graph",stage:"init",items:["linux"],kind:"graph",g:"systemd",
+   sum:`Targets and units: how systemd decides what to start and what can start at the same time.`,
+   m:[["localfs","sysinit","mounts done"],["sysinit","basic","early services up"],["basic","sshd","start (in parallel)"],["basic","net","wait for addresses"],["net","web","After=network-online"],["sshd","multi","part of multi-user"],["web","multi","part of multi-user"],["multi","gdm","then the display manager"],["gdm","graph","graphical.target reached"]],
+   text:[`systemd starts from default.target and pulls in everything it Wants or Requires. Before= and After= only control order; Wants= and Requires= control whether something starts at all. Everything with no ordering between it runs in parallel.`,
+    `Socket activation lets services start lazily: systemd opens the listening socket itself and starts the service on the first connection, so dependants don't have to wait.`,
+    `systemd-analyze critical-chain shows the slowest path through this graph, and systemd-analyze plot draws the whole boot as a timeline.`],
+   facts:[`targets`,`Wants / Requires vs Before / After`,`socket activation`,`systemd-analyze`],
+   say:`systemd builds a dependency graph from default.target and starts units in parallel wherever ordering allows.`}
+ ],
+ net:[
+  {id:"pxe",title:"Network boot, packet by packet",stage:"loader",items:["pxe","ipxe","server"],kind:"seq",
+   sum:`How a server with no OS installs itself from the network: DHCP, TFTP, iPXE and HTTP.`,
+   actors:[["nic","Server firmware","UEFI PXE client"],["dhcp","DHCP server",""],["srv","Boot server","TFTP / HTTP"],["ipxe","iPXE","network boot loader"],["inst","Installer","kernel + initrd"]],
+   rows:[["nic","dhcp","DISCOVER · option 93: x64 UEFI"],["dhcp","nic","OFFER: IP + next-server + filename"],["nic","dhcp","REQUEST"],["dhcp","nic","ACK"],["nic","srv","TFTP: get ipxe.efi"],["srv","ipxe","run iPXE (signed, if Secure Boot)"],["ipxe","dhcp","DHCP again, as user-class iPXE"],["dhcp","ipxe","filename: http://…/boot.ipxe"],["ipxe","srv","HTTPS: kernel + initrd"],["ipxe","inst","start installer: kickstart / autoinstall"]],
+   text:[`The firmware's PXE client tells DHCP what it is (option 93: BIOS or x64 UEFI) so the server can offer the right boot file, along with the server to fetch it from. TFTP is simple but slow and unreliable over long distances.`,
+    `So the usual trick is chain-loading: TFTP delivers iPXE, which asks DHCP again. Recognising iPXE by its user class, the DHCP server now hands out a script URL, and iPXE fetches the kernel and initrd over fast HTTP or HTTPS.`,
+    `The installer then reads an answer file (kickstart, Ubuntu autoinstall, Windows unattend.xml) and installs with no keyboard involved. UEFI HTTP Boot can skip TFTP entirely.`],
+   facts:[`DHCP option 93`,`TFTP → iPXE chainload`,`HTTP Boot`,`kickstart / autoinstall`],
+   say:`PXE uses DHCP to get an address and boot file, fetches it by TFTP (often iPXE), which then loads the kernel and installer over HTTP.`},
+  {id:"nfsroot",title:"Diskless: the root file system over NFS",stage:"kernel",items:["pxe","ipxe"],kind:"seq",
+   sum:`How many machines run from one shared system image without any local disk.`,
+   actors:[["k","Kernel","in RAM"],["ird","initramfs",""],["dhcp","DHCP server",""],["nfs","NFS server","10.0.0.5"],["sd","systemd","PID 1"]],
+   rows:[["k","=","cmdline: root=/dev/nfs nfsroot=10.0.0.5:/srv/root ip=dhcp"],["ird","dhcp","DHCP for the OS's own address"],["dhcp","ird","IP + root-path"],["ird","nfs","mount 10.0.0.5:/srv/root"],["nfs","ird","shared root, read-only"],["ird","=","overlay: writes go to tmpfs in RAM"],["ird","sd","switch_root → systemd"]],
+   text:[`After PXE or iPXE loads the kernel and initrd, the kernel command line says where the root lives: an NFS export on a file server. The initramfs (or the kernel itself) gets an address with DHCP and mounts it.`,
+    `The export is usually shared read-only by every client, so a writable overlay in RAM catches changes such as logs and temporary files. They vanish at reboot, which is often the point: every machine starts clean.`,
+    `Used for computer labs, thin clients (LTSP), render farms, HPC clusters and Raspberry Pi clusters. Updating one image updates every machine.`],
+   facts:[`root=/dev/nfs`,`read-only shared image`,`overlayfs + tmpfs`,`LTSP`],
+   say:`Diskless clients network-boot a kernel, then mount a shared read-only root over NFS with a RAM overlay for writes.`},
+  {id:"iscsiboot",title:"Booting from an iSCSI disk",stage:"kernel",items:["iscsi","ipxe"],kind:"seq",
+   sum:`The handover problem: firmware can read a remote disk, but the OS has to reconnect to it on its own.`,
+   actors:[["fw","Firmware","iSCSI initiator"],["san","Storage array","target IQN"],["acpi","iBFT","table in ACPI"],["os","OS","own initiator"]],
+   rows:[["fw","san","TCP 3260 · iSCSI login (CHAP)"],["san","fw","LUN 0 = a block device"],["fw","san","read GPT, EFI partition, loader"],["fw","acpi","write iBFT: IP, target, LUN, CHAP"],["fw","os","ExitBootServices: firmware driver gone"],["os","acpi","read iBFT"],["os","san","log in again with the OS initiator"],["os","=","mount root, continue booting"]],
+   text:[`iSCSI carries SCSI disk commands over TCP. During boot, the firmware (a NIC option ROM, the UEFI iSCSI driver, or iPXE's sanboot) is the initiator: it logs in to the target and reads the boot loader as if from a local disk.`,
+    `At ExitBootServices that firmware driver disappears. To avoid losing the disk, the firmware writes an iSCSI Boot Firmware Table (iBFT) into ACPI. The OS reads it and opens its own session to the same target before mounting root: Windows natively, Linux in the initramfs.`,
+    `Production setups add multipath (two network paths) so one failed switch doesn't take the system disk away. Fibre Channel SAN boot is the same idea, using the HBA's BIOS or UEFI driver.`],
+   facts:[`TCP 3260`,`IQN + LUN`,`iBFT`,`multipath`],
+   say:`Firmware boots from an iSCSI LUN, publishes the connection details in the iBFT, and the OS reconnects with its own initiator before mounting root.`},
+  {id:"netsec",title:"Network boot security",stage:"select",items:["pxe","ipxe","httpboot"],kind:"seq",
+   sum:`Anyone on the network can answer a DHCP broadcast. How network boot defends against that.`,
+   actors:[["client","Booting machine",""],["rogue","Rogue DHCP","attacker"],["sw","Switch","DHCP snooping"],["dhcp","Real DHCP",""],["web","Boot server","HTTPS"]],
+   rows:[["client","sw","DHCPDISCOVER (broadcast)"],["rogue","sw","fake OFFER: evil.efi"],["sw","=","untrusted port: drop the offer"],["dhcp","client","real OFFER: https boot URL"],["client","web","HTTPS: check cert against enrolled CA"],["client","=","Secure Boot: loader signed by a db key?"],["client","=","measured boot: PCRs record what ran"]],
+   text:[`Classic PXE has no security: DHCP and TFTP are unauthenticated, so anyone on the same network can answer first and hand the machine any program. That's why provisioning networks are kept isolated.`,
+    `Switches can enforce DHCP snooping, accepting DHCP offers only from trusted ports. HTTPS boot (iPXE or UEFI HTTP Boot) authenticates the server, and Secure Boot refuses loaders that aren't signed by a trusted key, whoever served them.`,
+    `Measured boot records what was actually loaded, so a server can prove to the provisioning system, through TPM attestation, that it ran the expected installer.`],
+   facts:[`unauthenticated DHCP / TFTP`,`DHCP snooping`,`HTTPS + enrolled CA`,`Secure Boot`],
+   say:`Network boot is protected by isolating the provisioning network, DHCP snooping, HTTPS with trusted certificates, and Secure Boot verifying whatever is downloaded.`}
+ ],
+ hw:[
+  {id:"bmc",title:"The BMC: a computer inside the server",stage:"power",items:["server"],kind:"graph",g:"bmc",
+   sum:`How admins power on, watch and fix a server they can't touch.`,
+   m:[["admin","bmc","Redfish: Reset → On"],["bmc","psu","press the virtual power button"],["psu","host","host powers on"],["bmc","sensors","watch temperature, fans, power"],["host","kvm","video output captured"],["kvm","admin","remote console in the browser"],["admin","fwflash","change boot order, update BIOS"]],
+   text:[`The Baseboard Management Controller is a small ARM system-on-chip with its own memory, flash and operating system (often based on OpenBMC). It runs on standby power whenever the server is plugged in, even if the server itself is off.`,
+    `It controls power, reads sensors, captures the screen and emulates a keyboard, mouse and DVD drive, so an admin can install an OS from an ISO image anywhere in the world. Vendors brand it iDRAC (Dell), iLO (HPE) or XClarity (Lenovo).`,
+    `The old IPMI protocol has weak security; Redfish replaces it with a REST API over HTTPS. Because a BMC can do anything to the server, it belongs on an isolated management network.`],
+   facts:[`standby power`,`IPMI → Redfish`,`virtual KVM + media`,`isolated network`],
+   say:`A BMC is an always-on management computer inside the server giving remote power, console, sensors and virtual media via IPMI or Redfish.`},
+  {id:"microvm",title:"Booting without firmware: microVMs",stage:"loader",items:["vm"],kind:"seq",
+   sum:`How Firecracker starts a Linux VM in about a hundred milliseconds by skipping everything it can.`,
+   actors:[["api","API client","Lambda, Fargate…"],["fc","Firecracker","VM monitor"],["kvm","KVM","in the host kernel"],["g","Guest kernel",""]],
+   rows:[["api","fc","PUT /boot-source: vmlinux + cmdline"],["api","fc","PUT /drives, /machine-config"],["api","fc","PUT /actions: InstanceStart"],["fc","=","load kernel into guest RAM"],["fc","=","write boot params, page tables, memory map"],["fc","kvm","KVM_RUN: vCPU starts in 64-bit"],["g","=","no firmware, no loader · virtio-mmio devices"],["g","fc","/sbin/init runs ~125 ms after start"]],
+   text:[`A normal VM still runs virtual firmware and a boot loader. Firecracker, built for AWS Lambda and Fargate, skips both: it places the kernel directly in guest memory, fills in the structures firmware would normally provide, and starts the virtual CPU already in 64-bit mode at the kernel's entry point.`,
+    `It emulates only a handful of devices (virtio network and block, a serial console, a minimal keyboard controller), so the guest kernel has almost nothing to probe.`,
+    `Restoring a memory snapshot of an already-booted VM is faster still, a few milliseconds, which is how serverless platforms hide cold starts.`],
+   facts:[`no firmware`,`direct kernel boot`,`virtio-mmio`,`snapshots`],
+   say:`Firecracker loads the kernel straight into guest memory and starts the vCPU at its entry point, skipping firmware and the boot loader.`},
+  {id:"sleep",title:"Sleep, hibernate and Fast Startup",stage:"ready",items:["desktop"],kind:"seq",
+   sum:`Why "Shut down" and "Restart" aren't the same on Windows, and what each power state skips.`,
+   actors:[["os","Operating system",""],["ram","RAM",""],["disk","Disk","hiberfil / swap"],["fw","Firmware","on wake / power-on"]],
+   rows:[["os","ram","Sleep: RAM stays powered"],["fw","os","wake: jump back in, no full POST"],["os","disk","Hibernate: write RAM image to disk"],["fw","os","power on: full POST, loader resumes image"],["os","disk","Fast Startup: sign out, hibernate the kernel"],["fw","os","next start: winresume reloads the kernel"],["os","=","Restart: always a cold, full boot"]],
+   text:[`Sleep (S3, or Modern Standby on newer laptops) keeps RAM powered, so waking skips the boot entirely. Hibernate (S4) writes memory to disk and powers off completely; the next start runs the firmware, then the loader restores the image instead of booting fresh.`,
+    `Windows Fast Startup, on by default, is a half-hibernate: "Shut down" signs everyone out and hibernates only the kernel session. The next power-on is faster, but drivers and the kernel never restart, which is why "Restart" is the fix for so many problems.`,
+    `It also leaves the Windows disk in a hibernated state, which is why dual-boot users are told to turn Fast Startup off before mounting it from Linux.`],
+   facts:[`S3 / Modern Standby`,`S4 hibernate`,`Fast Startup`,`Restart = cold boot`],
+   say:`Sleep keeps RAM powered, hibernate saves it to disk, and Windows Fast Startup hibernates the kernel on shutdown, so only Restart is a full cold boot.`}
+ ]
+};
+
+const DeepView={
+  label:"Deep internals",short:"Modes, keys and kernels",groups:true,
+  desc:"The next zoom level: CPU modes, UEFI phases, Secure Boot keys, measured boot, waking CPU cores, initramfs, driver loading, systemd, network boot (PXE, diskless NFS, iSCSI, security), the BMC, microVMs and power states.",
+  steps(){return DEEPT[state.group].map(t=>t.title);},
+  render(host){
+    const t=DEEPT[state.group][state.i],col=STAGES[SI[t.stage]].color;host.style.setProperty("--c",col);
+    head(host,esc(t.title),esc(t.sum));
+    if(t.kind==="graph")this.h=drawGraph(host,DGRAPH[t.g],t.m,{aria:t.title});
+    else{const d=seqDiagram(t.actors,t.rows,t.title);host.appendChild(d.box);d.flow.start();this.h=d.flow;}
+  },
+  notes(n){const t=DEEPT[state.group][state.i],st=STAGES[SI[t.stage]];n.style.setProperty("--c",st.color);
+    return `<p class="kicker">Deep internals · stage ${SI[t.stage]+1} · ${esc(st.name)}</p><h2>${esc(t.title)}</h2><p class="sum">${esc(t.sum)}</p>
+      <div class="facts">${t.facts.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div>
+      ${t.text.map(p=>`<p>${esc(p)}</p>`).join("")}
+      <div class="say"><h3>In one sentence</h3><p>${esc(t.say)}</p></div>
+      <h3>Applies to</h3><div class="facts">${t.items.map(id=>`<span class="chip" style="border-color:${ITEMS[id].color}">${esc(ITEMS[id].name)}</span>`).join("")}</div>`;},
+  stop(){this.h&&this.h.stop();}
+};
+
+const VIEWS={overview:HighView,side:SideView,sim:SimView,disk:DiskView,timeline:TimeView,compare:CompareView,deep:DeepView};
+const state={view:"overview",group:"fw",i:0,trouble:null,sim:null,simFor:-1,simCustom:false,scale:"fit",playing:false,timer:null};
+let active=null;
+function buildTabs(){
+  const t=document.getElementById("tabs");
+  const tab=k=>`<button class="tab" role="tab" type="button" id="tab-${k}" data-view="${k}" aria-selected="false"><b>${VIEWS[k].label}</b><span>${VIEWS[k].short}</span></button>`;
+  t.innerHTML=tab("overview")+`<div class="tab-group" role="group" aria-label="Interview depth"><span class="tg-label">Interview</span>${["side","sim","disk","timeline","compare"].map(tab).join("")}</div>`
+    +tab("deep");
+  t.addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view,true);});
+}
+function steps(){return VIEWS[state.view].steps();}
+function renderRail(){
+  const v=VIEWS[state.view],gEl=document.getElementById("groups"),sEl=document.getElementById("steps");
+  gEl.hidden=!v.groups;
+  gEl.innerHTML=GROUP_IDS.map(g=>`<button type="button" class="gbtn${g===state.group?" on":""}" data-group="${g}" aria-pressed="${g===state.group}">${esc(GROUPS[g].name)}<small>${esc(GROUPS[g].short)}</small></button>`).join("");
+  const st=steps();
+  sEl.innerHTML=st?st.map((s,i)=>`<button type="button" class="sbtn${i===state.i?" on":""}" data-step="${i}"><i>${i+1}</i>${esc(s)}</button>`).join(""):"";
+  const c=document.getElementById("counter");
+  c.textContent=st?`${state.i+1} / ${st.length}`+(v.groups?` · group ${GROUP_IDS.indexOf(state.group)+1}/${GROUP_IDS.length}`:""):`group ${GROUP_IDS.indexOf(state.group)+1} / ${GROUP_IDS.length}`;
+}
+function render(){
+  if(active)active.stop();
+  const host=document.getElementById("viz");host.innerHTML="";
+  active=VIEWS[state.view];active.render(host);
+  const n=document.getElementById("notes");n.innerHTML=active.notes(n);n.scrollTop=0;
+  renderRail();store.set("bs-group",state.group);
+}
+function go(i){const st=steps();state.i=st?Math.max(0,Math.min(st.length-1,i)):0;state.simCustom=false;render();if(state.playing)schedule();}
+function setGroup(g,i=0){state.group=g;state.i=i;render();if(state.playing)schedule();}
+function stepBy(d){
+  state.trouble=null;
+  const v=VIEWS[state.view],st=steps(),gi=GROUP_IDS.indexOf(state.group);
+  if(st&&state.i+d>=0&&state.i+d<st.length){go(state.i+d);return;}
+  if(!v.groups){go(st?(state.i+d+st.length)%st.length:0);return;}
+  const ng=GROUP_IDS[(gi+d+GROUP_IDS.length)%GROUP_IDS.length];state.group=ng;const ns=steps();setGroup(ng,d>0||!ns?0:ns.length-1);
+}
+function setView(v,push){
+  if(!VIEWS[v])v="overview";
+  if(v!==state.view){state.i=0;state.simFor=-1;state.simCustom=false;}
+  state.view=v;
+  document.querySelectorAll(".tab[data-view]").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)));
+  document.getElementById("viewdesc").textContent=VIEWS[v].desc;
+  if(push&&location.hash!=="#"+v){try{history.replaceState(null,"","#"+v);}catch(e){location.hash=v;}}
+  render();if(state.playing)schedule();
+}
+function schedule(){
+  clearTimeout(state.timer);
+  const d=state.view==="side"?16000:state.view==="sim"?14000:12000,b=document.getElementById("auto");
+  b.style.setProperty("--adv",d+"ms");b.classList.remove("on");void b.offsetWidth;b.classList.add("on");
+  state.timer=setTimeout(()=>stepBy(1),d);
+}
+function togglePlay(on){state.playing=on??!state.playing;const b=document.getElementById("auto");b.classList.toggle("on",state.playing);b.setAttribute("aria-pressed",String(state.playing));if(state.playing)schedule();else clearTimeout(state.timer);}
+function toggleAnim(p){
+  ANIM.paused=p??!ANIM.paused;document.documentElement.classList.toggle("anim-paused",ANIM.paused);
+  const b=document.getElementById("anim");b.textContent=ANIM.paused?"Play animation":"Pause animation";b.setAttribute("aria-pressed",String(ANIM.paused));
+  b.title=ANIM.paused?"Resume the animations (space)":"Pause the animations (space)";store.set("bs-paused",ANIM.paused?"1":"0");
+}
+
+buildTabs();
+document.getElementById("groups").addEventListener("click",e=>{const b=e.target.closest("[data-group]");if(b)setGroup(b.dataset.group);});
+document.getElementById("steps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(b){state.trouble=null;state.simFor=-1;go(+b.dataset.step);}});
+document.getElementById("prev").onclick=()=>stepBy(-1);
+document.getElementById("next").onclick=()=>stepBy(1);
+document.getElementById("anim").onclick=()=>toggleAnim();
+document.getElementById("auto").onclick=()=>togglePlay();
+document.addEventListener("click",e=>{const t=e.target.closest("[data-trouble]");if(t){const i=+t.dataset.trouble;state.trouble=state.trouble===i?null:i;if(state.trouble!=null)state.i=SI[TROUBLE[i][1]];render();}});
+document.addEventListener("keydown",e=>{
+  if(e.target.closest("input,textarea,select,summary"))return;
+  if(e.key==="ArrowRight"){e.preventDefault();stepBy(1);}
+  else if(e.key==="ArrowLeft"){e.preventDefault();stepBy(-1);}
+  else if(e.key===" "&&!e.target.closest("button,[role=button]")){e.preventDefault();toggleAnim();}
+});
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(VIEWS[v]&&v!==state.view)setView(v,false);});
+const sg=store.get("bs-group");if(GROUPS[sg])state.group=sg;
+setView(VIEWS[location.hash.slice(1)]?location.hash.slice(1):"overview",false);
+toggleAnim(store.get("bs-paused")==="1");
+</script>
+<script>
+/* Back link to the collection: only on GitHub Pages or a local copy, not on the single published page. */
+(function(){var h=location.hostname;if(location.protocol==="file:"||/\.github\.io$/.test(h)||h==="localhost"){var a=document.querySelector(".home-link");if(a)a.hidden=false;}})();
+</script>

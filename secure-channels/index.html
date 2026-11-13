@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Secure Channels</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one shared cursor (group + step) drives interchangeable views. Header, grouped view tabs, a sticky rail (group picker, steps, controls), then diagram left and notes right; stacks on narrow screens.
+   Engine colours encode which security engine a protocol is built on: TLS, SSH, IPsec, WireGuard. */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --surface-2:#E3E9EE; --ink:#122130; --muted:#55687B; --line:#C6D1DB; --accent:#0B6A8E;
+  --tls:#2155D0; --ssh:#08826F; --ipsec:#BA6608; --wg:#C02467; --warn:#B4231B;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Helvetica Neue",Arial,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4;
+  --tls:#7199FF; --ssh:#3BC6AE; --ipsec:#F0A447; --wg:#F06BA7; --warn:#FF7A70; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4;
+  --tls:#7199FF; --ssh:#3BC6AE; --ipsec:#F0A447; --wg:#F06BA7; --warn:#FF7A70; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+code{font-family:var(--font-mono);font-size:.92em}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{padding-block:28px 10px}
+.eyebrow{margin:0 0 6px;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(30px,4.4vw,52px);line-height:1.02;margin:0;letter-spacing:-.02em}
+h1 .lock{display:inline-block;width:.42em;height:.36em;border:.07em solid var(--accent);border-radius:.06em;margin-left:.14em;position:relative;vertical-align:.02em}
+h1 .lock::before{content:"";position:absolute;left:50%;bottom:100%;width:.26em;height:.24em;margin-left:-.13em;border:.07em solid var(--accent);border-bottom:0;border-radius:.13em .13em 0 0}
+.lede{margin:12px 0 0;color:var(--muted);max-width:70ch}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;background:var(--c)}
+
+/* view tabs */
+.views{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;padding-block:14px 8px}
+.views > .tab{margin-top:17px}
+.tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:9px 14px;cursor:pointer;text-align:left;min-width:150px;flex:1 1 150px;max-width:260px}
+.tab b{font-family:var(--font-display);font-weight:700;font-size:16px}
+.tab span{font-size:12.5px;color:var(--muted)}
+.tab[aria-selected="true"]{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink)}
+.tab[disabled]{cursor:not-allowed;border-style:dashed;opacity:.65}
+.tab-group{position:relative;display:flex;flex-wrap:wrap;gap:8px;flex:4 1 560px;min-width:0;border:1.5px solid var(--line);border-radius:14px;padding:15.5px 8px 8px}
+.tab-group .tab{flex:1 1 130px}
+.tg-label{position:absolute;top:-9px;left:14px;padding:0 6px;background:var(--bg);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tab-group:has(.tab[aria-selected="true"]){border-color:var(--ink)}
+.tab-group:has(.tab[aria-selected="true"]) .tg-label{color:var(--ink);font-weight:600}
+.viewdesc{color:var(--muted);font-size:14px;margin-block:2px 12px}
+
+/* rail */
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-block:1px solid var(--line)}
+.rail-in{display:flex;gap:10px 14px;align-items:center;padding-block:10px;flex-wrap:wrap}
+.groups{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.gbtn{border:0;background:none;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:13.5px;display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.gbtn small{font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+.gbtn.on{background:var(--ink);color:var(--bg)}
+.gbtn.on small{color:var(--bg);opacity:.75}
+.steps{display:flex;gap:5px;flex-wrap:wrap;flex:1 1 380px;min-width:0}
+.sbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13px;white-space:nowrap}
+.sbtn i{font-style:normal;font-family:var(--font-mono);color:var(--muted);margin-right:5px}
+.sbtn.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));font-weight:600}
+.sbtn.on i{color:var(--accent)}
+.ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;height:36px;min-width:36px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px}
+.btn:hover{border-color:var(--ink)}
+#anim{min-width:150px}
+#anim[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#auto{position:relative;overflow:hidden}
+#auto.on{border-color:var(--ink);font-weight:600}
+.adv-bar{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--accent)}
+#auto.on .adv-bar{animation:adv var(--adv,12s) linear forwards}
+@keyframes adv{to{width:100%}}
+.anim-paused *:not(.adv-bar){animation-play-state:paused!important}
+.counter{font-family:var(--font-mono);font-size:12.5px;color:var(--muted);min-width:96px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* workspace */
+.work{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding-block:18px 40px;align-items:start}
+@media (max-width:1100px){.work{grid-template-columns:minmax(0,1fr)}}
+.viz{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.viz-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.viz-head h2{font-family:var(--font-display);font-size:19px;margin:0;font-weight:700;text-wrap:balance}
+.viz-head .hint{font-size:13px;color:var(--muted)}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.scroll-x > svg{display:block;min-width:720px;width:100%;height:auto}
+h3.sub{font-family:var(--font-display);font-size:17px;margin:22px 0 4px}
+p.subtext{margin:0 0 10px;color:var(--muted);font-size:14px}
+
+/* svg */
+.frame{fill:none;stroke:var(--line);stroke-dasharray:4 4}
+.frame-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.link{stroke:var(--line);stroke-width:2;fill:none}
+.link.hot{stroke:var(--c);stroke-width:3}
+.link-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px}
+.node rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.node .t{fill:var(--ink);font-weight:600;font-size:13.5px;font-family:var(--font-body)}
+.node .s{fill:var(--muted);font-size:10.5px;font-family:var(--font-mono)}
+.node.dim{opacity:.45}
+.node.on rect{stroke:var(--c);stroke-width:2.5;fill:color-mix(in srgb,var(--c) 10%,var(--surface))}
+.trail{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;opacity:.22}
+.trail.act{opacity:1}
+.pkt{fill:var(--c);stroke:var(--surface);stroke-width:2}
+.pill rect{fill:var(--ink)}
+.pill text{fill:var(--bg);font-family:var(--font-mono);font-size:11px}
+.lane-h{fill:var(--ink);font-weight:600;font-size:12.5px;font-family:var(--font-body)}
+.lane-s{fill:var(--muted);font-size:10px;font-family:var(--font-mono)}
+.lifeline{stroke:var(--line);stroke-dasharray:3 4}
+.arrow{stroke:var(--c);stroke-width:1.8}
+.arrowhead{fill:var(--c)}
+.alabel{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.snote rect{fill:color-mix(in srgb,var(--c) 14%,var(--surface));stroke:var(--c)}
+.snote text{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px}
+
+.log{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px}
+.log li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:baseline;padding:5px 8px;border-radius:6px;font-size:13.5px}
+.log li .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.log li .who{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.log li.act{background:color-mix(in srgb,var(--c) 12%,transparent)}
+.log li.note{color:var(--muted);font-style:italic}
+
+/* high level */
+.scene{cursor:pointer}
+.scene .sbox{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.scene.cur .sbox{stroke:var(--accent);stroke-width:2.5;fill:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.scene.dim{opacity:.5}
+.scene:hover{opacity:1}
+.sc-title{fill:var(--ink);font-family:var(--font-display);font-size:16px;font-weight:700}
+.sc-sub{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px}
+.dev rect{fill:var(--surface-2);stroke:var(--line)}
+.dev text{fill:var(--ink);font-size:11.5px;font-family:var(--font-body);font-weight:600}
+.tube{fill:none;stroke:color-mix(in srgb,var(--accent) 22%,transparent);stroke-width:18;stroke-linecap:round}
+.sline{stroke:var(--accent);stroke-width:2.5;fill:none}
+.sline.plain{stroke:var(--muted);stroke-dasharray:5 5}
+.sc-cap{fill:var(--muted);font-family:var(--font-mono);font-size:10px}
+.sc-cap.warn{fill:var(--warn)}
+.family{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.family{grid-template-columns:minmax(0,1fr)}}
+.fcol h4{margin:0 0 6px;font-size:13px;font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.fcol.cur h4{color:var(--accent);font-weight:600}
+.chip-p{display:block;width:100%;text-align:left;border:1px solid var(--line);border-left:5px solid var(--c);background:var(--surface);border-radius:8px;padding:8px 10px;cursor:pointer;margin-bottom:6px;line-height:1.35}
+.chip-p b{font-family:var(--font-display);font-size:15px}
+.chip-p .e{font-family:var(--font-mono);font-size:10.5px;color:var(--c);margin-left:6px}
+.chip-p span.l{display:block;font-size:13px;color:var(--muted)}
+.chip-p.on{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c);background:color-mix(in srgb,var(--c) 8%,var(--surface))}
+.dt{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-2)}
+.dt .q{font-weight:600;margin:0 0 8px}
+.dt .opts{display:flex;flex-wrap:wrap;gap:6px}
+.dt .opt{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:14px}
+.dt .opt:hover{border-color:var(--ink)}
+.dt .res{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.dt .res b{font-family:var(--font-display);font-size:18px;color:var(--c)}
+.dt .trail-txt{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:13px}
+
+/* side by side */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px}
+.pcard{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:12px;padding:10px 12px 12px;min-width:0;display:flex;flex-direction:column}
+.pc-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.pc-head b{font-family:var(--font-display);font-size:17px}
+.eng{font-family:var(--font-mono);font-size:11px;color:var(--c);border:1px solid var(--c);border-radius:999px;padding:0 7px}
+.pc-svg{overflow-x:auto}
+.pc-svg svg{display:block;width:100%;height:auto}
+.pc-text{font-size:13.5px;margin:8px 0 0;color:var(--ink)}
+.eaves{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.eaves h4{margin:0 0 4px;font-size:12px;font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.eaves ul{margin:0;padding-left:18px;font-size:13.5px}
+.eaves ul.vis li::marker{color:var(--warn)}
+.eaves ul.hid li::marker{color:var(--c)}
+
+/* layer stack */
+.lcard{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:12px;margin-bottom:12px}
+.lcard h3{margin:0;font-family:var(--font-display);font-size:17px}
+.lcard .where{font-size:13px;color:var(--muted);margin:2px 0 8px}
+.barlbl{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin:8px 0 4px}
+.packet{display:flex;flex-wrap:wrap;gap:3px;align-items:stretch}
+.blk{border-radius:6px;padding:6px 9px;font-family:var(--font-mono);font-size:11.5px;display:flex;flex-direction:column;justify-content:center;border:1px solid transparent;animation:wrapin 8s infinite both;min-width:0}
+.blk small{font-size:10px;opacity:.8}
+.k-ip{background:color-mix(in srgb,var(--ipsec) 20%,var(--surface));border-color:var(--ipsec)}
+.k-tr{background:color-mix(in srgb,var(--tls) 18%,var(--surface));border-color:var(--tls)}
+.k-sec{background:color-mix(in srgb,var(--ssh) 18%,var(--surface));border-color:var(--ssh)}
+.k-tun{background:color-mix(in srgb,var(--muted) 18%,var(--surface));border-color:var(--muted)}
+.k-inner{background:color-mix(in srgb,var(--wg) 14%,var(--surface));border-color:var(--wg)}
+.k-app{background:color-mix(in srgb,var(--wg) 24%,var(--surface));border-color:var(--wg);flex:1 1 140px}
+.k-tag{background:var(--surface-2);border-color:var(--line)}
+.encwrap{display:flex;flex-wrap:wrap;gap:3px;padding:16px 4px 4px;border:2px dashed var(--ink);border-radius:8px;position:relative;flex:1 1 260px;min-width:0;background:repeating-linear-gradient(135deg,transparent 0 7px,color-mix(in srgb,var(--ink) 7%,transparent) 7px 9px)}
+.encwrap::before{content:"encrypted · looks like random bytes";position:absolute;top:1px;left:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink);font-weight:600}
+.plainwarn{font-size:12.5px;color:var(--warn);margin:4px 0 0;font-weight:600}
+@keyframes wrapin{0%{opacity:.15;transform:translateY(5px)}8%{opacity:1;transform:none}90%{opacity:1}100%{opacity:.15}}
+
+/* deep internals */
+.band-lbl{fill:var(--ink);font-family:var(--font-mono);font-size:11.5px;font-weight:600;letter-spacing:.08em}
+.band-sub{fill:var(--muted);font-family:var(--font-mono);font-size:10px}
+.blegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.blegend span{display:inline-flex;align-items:center;gap:6px}
+.blegend i.bf{display:inline-block;width:18px;height:12px;min-width:0;padding:0;flex:none}
+.brow{display:flex;flex-wrap:wrap;gap:3px}
+.bf{flex:1 1 0;min-width:76px;border-radius:6px;padding:7px 8px;text-align:left;font-family:var(--font-mono);font-size:11.5px;display:flex;flex-direction:column;gap:1px;cursor:pointer;border:1.5px solid var(--line);background:var(--surface-2);transition:transform .2s,box-shadow .2s;overflow-wrap:anywhere}
+.bf small{font-size:10px;color:var(--muted)}
+.bf.enc{border:1.5px dashed var(--ink);background:repeating-linear-gradient(135deg,var(--surface) 0 7px,color-mix(in srgb,var(--ink) 9%,var(--surface)) 7px 9px)}
+.bf.tag{border:1.5px dotted var(--ink);background:var(--surface)}
+.bf.mix{border:1.5px dashed var(--muted);background:linear-gradient(90deg,var(--surface-2) 0 35%,transparent 35%),repeating-linear-gradient(135deg,var(--surface) 0 7px,color-mix(in srgb,var(--ink) 9%,var(--surface)) 7px 9px)}
+.bf.on{border-color:var(--c);box-shadow:0 0 0 3px var(--c);transform:translateY(-2px)}
+.bdetail{margin-top:14px;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 7%,transparent);padding:10px 12px;border-radius:0 8px 8px 0;min-height:7.5em}
+.bdetail b{font-family:var(--font-mono)}
+.bdetail .bsz{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.bdetail p{margin:6px 0 0}
+
+/* compare */
+.ctable{border-collapse:separate;border-spacing:0;width:100%;min-width:720px;font-size:13.5px}
+.ctable th,.ctable td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.ctable thead th{position:sticky;top:0;background:var(--surface);font-family:var(--font-display);font-size:16px;border-bottom:3px solid var(--c)}
+.ctable thead th small{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--c);font-weight:500}
+.ctable tbody th{font-weight:600;color:var(--muted);width:150px;font-size:12.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+.verdict{margin-top:14px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:10px 12px;border-radius:0 8px 8px 0}
+
+/* notes */
+.notes{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);max-height:calc(100vh - 96px);overflow:auto}
+@media (max-width:1100px){.notes{position:static;max-height:none}}
+.notes .kicker{font-family:var(--font-mono);font-size:12px;color:var(--c);letter-spacing:.05em;text-transform:uppercase;margin:0}
+.notes h2{font-family:var(--font-display);font-size:25px;line-height:1.12;margin:4px 0 8px;text-wrap:balance}
+.notes .sum{font-size:16px;margin:0 0 12px}
+.notes p{margin:0 0 10px}
+.notes h3{font-size:12px;font-family:var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;font-weight:500}
+.say{border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 8%,transparent);padding:10px 12px;border-radius:0 8px 8px 0;margin:14px 0}
+.say h3{margin-top:0}
+.say p{margin:0;font-size:15px}
+.facts{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 14px}
+.chip{font-family:var(--font-mono);font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--surface-2)}
+.notes .btn{height:32px;font-size:13.5px;margin-top:4px}
+
+footer{color:var(--muted);font-size:12.5px;padding-block:0 32px}
+footer p{max-width:90ch;margin:0 0 6px}
+@media (max-width:720px){.tab{max-width:none}.pgrid{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top wrap">
+  <a class="home-link" href="../" hidden style="display:inline-block;margin-bottom:10px;font-family:var(--font-mono);font-size:12.5px;color:var(--accent);text-decoration:none">&larr; All topics</a>
+  <p class="eyebrow">SSH, HTTPS, FTPS, SFTP, VPNs and Tailscale, compared</p>
+  <h1>Secure Channels<span class="lock" aria-hidden="true"></span></h1>
+  <p class="lede">Nine ways to keep traffic private, from the padlock in your browser to a mesh of WireGuard tunnels. Start with the big picture, compare protocols that do the same job phase by phase, then go down to bytes, keys and kernels.</p>
+  <div class="legend" aria-label="Colour key: the security engine each protocol is built on">
+    <span style="--c:var(--tls)"><i></i>TLS</span><span style="--c:var(--ssh)"><i></i>SSH</span><span style="--c:var(--ipsec)"><i></i>IPsec</span><span style="--c:var(--wg)"><i></i>WireGuard</span>
+  </div>
+</header>
+
+<nav class="views wrap" role="tablist" aria-label="Visualisation" id="tabs"></nav>
+<p class="viewdesc wrap" id="viewdesc"></p>
+
+<div class="rail">
+  <div class="wrap rail-in">
+    <div class="groups" id="groups" role="group" aria-label="Comparison group"></div>
+    <div class="steps" id="steps"></div>
+    <div class="ctrl">
+      <button class="btn" id="prev" type="button" aria-label="Previous" title="Previous (←)">&#8592;</button>
+      <button class="btn" id="anim" type="button" aria-pressed="false" title="Pause the animations (space)">Pause animation</button>
+      <button class="btn" id="next" type="button" aria-label="Next" title="Next (→)">&#8594;</button>
+      <span class="counter" id="counter"></span>
+      <button class="btn" id="auto" type="button" aria-pressed="false" title="Move on automatically, looping">Auto-advance<span class="adv-bar"></span></button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap work">
+  <section class="viz" id="viz" aria-live="polite"></section>
+  <aside class="notes" id="notes"></aside>
+</main>
+
+<footer class="wrap">
+  <p>Addresses such as 203.0.113.9, 198.51.100.4 and 10.0.0.20 come from documentation and private ranges. Port numbers are the usual defaults; all of them can be changed.</p>
+  <p>Message sequences are simplified to the parts that matter for comparison. Real handshakes carry more fields and options.</p>
+</footer>
+
+<script>
+/* ============================================================
+   DATA MODEL
+   ENGINES: the security engine underneath (sets the colour).
+   PROTOCOLS: each channel. ph = six phases, each with s (sequence:
+   [from,to,label] or [lane,"=",note]) and t (text); eaves has vis/hid.
+   GROUPS: protocols that do the same job and are compared together.
+   Deeper levels can be added later as extra fields per protocol.
+   ============================================================ */
+const ENGINES={
+  tls:{name:"TLS",color:"var(--tls)",trust:"Certificate authorities vouch for server names",used:"HTTPS, FTPS, OpenVPN"},
+  ssh:{name:"SSH",color:"var(--ssh)",trust:"Keys you approve: known_hosts and authorized_keys",used:"SFTP, SCP, SSH tunnels"},
+  ipsec:{name:"IPsec",color:"var(--ipsec)",trust:"Certificates or pre-shared keys via IKEv2",used:"IPsec site-to-site and remote-access VPNs"},
+  wg:{name:"WireGuard",color:"var(--wg)",trust:"Static public keys, listed in config or handed out by a coordinator",used:"WireGuard, Tailscale"}
+};
+
+const PHASES=[
+  {id:"reach",name:"Reach",q:"How does it find and connect to the other side?",text:`Before anything is secret, the two sides need a path: an address, a port, TCP or UDP, and a way through firewalls and NAT.`},
+  {id:"keys",name:"Agree on keys",q:"How do both sides end up with the same secret?",text:`Both sides exchange public values (Diffie-Hellman) and each derives the same secret without ever sending it. Fresh keys for every session give forward secrecy: a stolen long-term key can't decrypt old traffic.`},
+  {id:"identity",name:"Prove identity",q:"How do they know who is on the other end?",text:`Encryption is useless if you're talking to an impostor. Each side proves who it is with certificates, known keys, passwords or an identity provider.`},
+  {id:"data",name:"Carry data",q:"What gets wrapped, and how?",text:`With keys and identities settled, the payload is encrypted and authenticated, record by record or packet by packet.`},
+  {id:"eaves",name:"What leaks",q:"What can an eavesdropper still see?",text:`Encryption hides contents, not everything. Addresses, ports, timing, sizes and some handshake fields usually stay visible.`},
+  {id:"alive",name:"Keep alive",q:"What happens over time?",text:`Long-lived channels refresh keys, survive idle NAT timeouts, cope with network changes and close cleanly.`}
+];
+
+const P={
+/* ---------------- FILE TRANSFER ---------------- */
+ftps:{name:"FTPS",full:"FTP over TLS (explicit, FTPES)",engine:"tls",group:"files",scope:"app",
+ actors:[["c","FTP client","FileZilla, lftp"],["s","FTPS server","port 21 + data ports"]],
+ plain:{line:`Old-style FTP file transfer with a padlock added.`,analogy:`An old postal service that added lockable bags, but still sends a separate van for every parcel.`,when:`When a partner or legacy system only speaks FTP.`},
+ ph:{
+  reach:{s:[["c","s","TCP → port 21 (control)"],["s","c","220 Service ready"]],t:`Explicit FTPS starts as normal FTP on port 21 and then upgrades. Implicit FTPS on port 990 starts with TLS straight away and is considered legacy.`},
+  keys:{s:[["c","s","AUTH TLS"],["s","c","234 Proceed with negotiation"],["c","s","TLS ClientHello · key share"],["s","c","ServerHello · key share"]],t:`The client asks to switch to TLS, then a normal TLS handshake runs on the control connection.`},
+  identity:{s:[["s","c","Certificate"],["c","=","verify the certificate"],["c","s","USER alice · PASS ••• (encrypted)"],["s","c","230 Logged in"]],t:`The server shows a TLS certificate, ideally from a public CA. Internal servers often use self-signed ones that clients have to pin. The user then logs in with a password over the encrypted channel, or less often with a client certificate.`},
+  data:{s:[["c","s","PBSZ 0 · PROT P"],["c","s","PASV"],["s","c","227 use port 50012"],["c","s","new TCP + TLS → :50012"],["s","c","file bytes (TLS)"]],t:`Every file transfer or directory listing opens a separate data connection, each with its own TLS handshake (usually resuming the control session). PROT P makes sure the data connections are encrypted too.`},
+  eaves:{vis:[`IP addresses and port 21`,`A new connection, and its port, for every transfer`,`The server certificate (with TLS 1.2)`,`Size of each transfer`],hid:[`Username and password`,`Commands and file names`,`File contents`],t:`Because the commands are encrypted, firewalls can no longer read the PASV reply to open the data port. That's why FTPS needs a fixed passive port range opened by hand.`},
+  alive:{s:[["c","s","NOOP (keep control open)"],["c","s","QUIT"],["s","c","221 Goodbye"]],t:`During a long transfer the control connection sits idle and can be cut by a firewall or NAT timeout. Beyond TLS itself, there's no built-in rekeying.`}},
+ cmp:{engine:"TLS",layer:"Application: FTP commands and data over TLS",transport:"TCP 21 + passive data ports (or 990 implicit)",protects:"File transfers",srv:"Certificate (often self-signed internally)",usr:"Password, sometimes a client certificate",nat:"Poor: a range of data ports must be opened",use:"Legacy business-to-business and partner file exchange",watch:"Firewall setup; mixed modes where data channels aren't encrypted (PROT C)"},
+ packets:[{lbl:"Control channel",b:[["ip","IP","client → server",0],["tr","TCP","→ 21",0],["tr","TLS header","type · length",0],["app","FTP command","RETR q3.csv",1],["tag","Tag","",0]]},
+   {lbl:"Data channel (one per transfer)",b:[["ip","IP","client → server",0],["tr","TCP","→ 50012",0],["tr","TLS header","type · length",0],["app","File data","q3.csv bytes",1],["tag","Tag","",0]]}],
+ topo:{g:"ftps",m:[["client","ctl","commands over TLS"],["ctl","client","227: use port 50012"],["client","data","new TLS connection"],["data","client","file bytes"]],t:`Two kinds of connection to the same server: one control channel, plus a new data channel for every transfer. NAT routers and firewalls must allow the whole passive port range.`}},
+
+sftp:{name:"SFTP",full:"SSH File Transfer Protocol",engine:"ssh",group:"files",scope:"app",
+ actors:[["c","SFTP client","sftp, WinSCP"],["s","sshd","port 22"]],
+ plain:{line:`Secure file transfer built on SSH: one locked connection for everything.`,analogy:`A locked courier van shared with the remote office. You can browse, fetch and drop off files in a single trip.`,when:`The usual choice for moving files securely, especially in scripts.`},
+ ph:{
+  reach:{s:[["c","s","TCP → port 22"],["s","c","SSH-2.0-OpenSSH_9.x"],["c","s","SSH-2.0 client banner"]],t:`One TCP connection to port 22 carries everything. The version banners are exchanged in plain text.`},
+  keys:{s:[["c","s","KEXINIT (algorithm lists)"],["s","c","KEXINIT"],["c","s","ECDH init (curve25519)"],["s","c","ECDH reply + host key signature"],["c","s","NEWKEYS"]],t:`Both sides list the algorithms they support and pick the best common set, then run elliptic-curve Diffie-Hellman. Recent OpenSSH also offers post-quantum hybrids (sntrup761 or ML-KEM combined with X25519).`},
+  identity:{s:[["c","=","host key in known_hosts?"],["c","s","userauth: publickey + signature"],["s","c","USERAUTH_SUCCESS"]],t:`The client checks the server's host key against known_hosts. The user proves they hold a private key whose public half is in authorized_keys. Passwords and SSH certificates are also possible.`},
+  data:{s:[["c","s","CHANNEL_OPEN session"],["c","s","subsystem: sftp"],["c","s","FXP_OPEN /reports/q3.csv"],["c","s","FXP_READ offset 0"],["s","c","FXP_DATA (32 KB chunks)"]],t:`SFTP is a remote file-system protocol, not FTP. Requests carry IDs, file handles and offsets, so it can list directories, resume transfers and change permissions.`},
+  eaves:{vis:[`IP addresses and port 22`,`SSH version banners and algorithm lists`,`Packet sizes and timing`],hid:[`Username and authentication`,`Commands and file names`,`File contents`],t:`Everything after the key exchange is encrypted on a single connection, so firewalls only need to allow port 22.`},
+  alive:{s:[["c","s","keepalive@openssh.com"],["c","s","rekey (after ~1 GB or 1 h)"],["c","s","CHANNEL_CLOSE · DISCONNECT"]],t:`SSH rekeys long sessions automatically. Sync tools often keep one SFTP session open for a whole job.`}},
+ cmp:{engine:"SSH",layer:"Application: subsystem inside SSH",transport:"TCP 22",protects:"File transfers and file management",srv:"Host key (known_hosts) or SSH certificate",usr:"Key pair, password or SSH certificate",nat:"Good: one outbound port",use:"Default choice for secure file transfer and automation",watch:"Scripts that skip host key checking"},
+ packets:[{lbl:"One connection for everything",b:[["ip","IP","client → server",0],["tr","TCP","→ 22",0],["sec","SSH packet","length · padding",1],["tun","Channel data","channel 0",1],["app","SFTP request","READ handle, offset",1],["tag","MAC","",0]]}],
+ topo:{g:"cs",over:{server:{t:"SFTP server",s:"sshd :22"}},m:[["client","server","SSH: commands + file data"],["server","client","file chunks"]],t:`One connection to port 22 carries commands and data in both directions.`}},
+
+scp:{name:"SCP",full:"Secure copy over SSH",engine:"ssh",group:"files",scope:"app",
+ actors:[["c","scp client","scp file host:"],["s","sshd","port 22"]],
+ plain:{line:`A quick, one-shot secure copy over SSH.`,analogy:`Handing over a single locked box. Quick, but there's no way to pick up where you left off.`,when:`Copying a file from a terminal in a hurry.`},
+ ph:{
+  reach:{s:[["c","s","TCP → port 22"],["s","c","SSH-2.0 banner"]],t:`Same as SFTP: one SSH connection to port 22.`},
+  keys:{s:[["c","s","SSH key exchange"],["s","c","key share + host key signature"]],t:`An identical SSH key exchange. SCP gets all of its security from SSH.`},
+  identity:{s:[["c","=","host key in known_hosts?"],["c","s","publickey auth"],["s","c","success"]],t:`The same SSH host keys and user keys as SFTP.`},
+  data:{s:[["c","s","exec: scp -t /reports"],["c","s","C0644 1048576 q3.csv"],["c","s","file bytes"],["s","c","ack"]],t:`The legacy SCP protocol runs a remote scp command and streams a tiny header followed by the raw bytes. Since OpenSSH 9.0, the scp command uses the SFTP protocol underneath by default.`},
+  eaves:{vis:[`IP addresses and port 22`,`SSH banners`,`Approximate file size, from traffic volume`],hid:[`File names and contents`,`Username`],t:`The same visibility as SFTP.`},
+  alive:{s:[["s","c","exit-status 0"],["c","s","DISCONNECT"]],t:`SCP copies and exits. There's no resume, no directory listing and no way to continue a broken transfer.`}},
+ cmp:{engine:"SSH",layer:"Application: remote command over SSH",transport:"TCP 22",protects:"Single copies",srv:"Host key",usr:"Key pair or password",nat:"Good: one outbound port",use:"Quick one-off copies from a terminal",watch:"The legacy protocol had security bugs; no resume"},
+ packets:[{lbl:"One connection per copy",b:[["ip","IP","client → server",0],["tr","TCP","→ 22",0],["sec","SSH packet","length · padding",1],["tun","Channel data","exec scp",1],["app","SCP stream","C0644 … q3.csv + bytes",1],["tag","MAC","",0]]}],
+ topo:{g:"cs",over:{server:{t:"SSH server",s:"sshd :22"}},m:[["client","server","SSH: one file copy"]],t:`One SSH connection per copy, closed as soon as it's done.`}},
+
+/* ---------------- APP & PORT ---------------- */
+https:{name:"HTTPS",full:"HTTP over TLS",engine:"tls",group:"app",scope:"app",
+ actors:[["c","Browser","client"],["s","Web server","example.com"]],
+ plain:{line:`The padlock in your browser: a private, verified conversation with one website.`,analogy:`A sealed envelope addressed to a company whose ID has been checked by a notary.`,when:`Every website and web API. You use it all day without noticing.`},
+ ph:{
+  reach:{s:[["c","s","TCP SYN → port 443"],["s","c","SYN-ACK"],["c","s","ACK"]],t:`The browser looks up the name with DNS and opens TCP to port 443. With HTTP/3 it uses QUIC over UDP 443 instead, which merges this step with the next.`},
+  keys:{s:[["c","s","ClientHello · X25519 key share · SNI"],["s","c","ServerHello · key share"]],t:`TLS 1.3 sends a key share in the very first message, so one round trip is enough. Both sides derive the session keys from the two shares.`},
+  identity:{s:[["s","c","Certificate + signature"],["c","=","check chain → trusted CA"]],t:`The server proves it owns the name with a certificate signed by an authority the browser trusts. The user is usually anonymous at this level and logs in later inside the app (password, passkey, cookie). Mutual TLS adds a client certificate.`},
+  data:{s:[["c","s","HTTP/2 GET /account"],["s","c","200 OK · HTML"]],t:`HTTP messages travel in encrypted TLS records, each with an authentication tag. Many requests share one connection as HTTP/2 streams.`},
+  eaves:{vis:[`Client and server IP addresses`,`Port 443`,`The host name, in SNI (unless Encrypted Client Hello is used)`,`Timing and sizes`],hid:[`The full URL path and query`,`Headers and cookies`,`Page contents and form data`],t:`The DNS lookup can also reveal the site, unless DNS over HTTPS is used.`},
+  alive:{s:[["c","s","more requests, same connection"],["s","c","NewSessionTicket"],["c","s","close_notify"]],t:`One connection is reused for many requests. Session tickets let a later connection resume without a full handshake, even sending data in the first message (0-RTT).`}},
+ cmp:{engine:"TLS 1.3",layer:"Application (above TCP or QUIC)",transport:"TCP 443, or QUIC on UDP 443",protects:"One app: web traffic",srv:"Certificate signed by a public CA",usr:"Inside the app (password, passkey, cookie); optional client certificate",nat:"Excellent: allowed almost everywhere",use:"Websites, APIs, almost everything on the web",watch:"The host name leaks via SNI; you trust many CAs"},
+ packets:[{lbl:"Browser → web server",b:[["ip","IP","laptop → server",0],["tr","TCP","51234 → 443",0],["tr","TLS record header","type 23 · length",0],["app","HTTP request","GET /account · cookies",1],["tag","Auth tag","16 bytes",0]]}],
+ topo:{g:"cs",over:{server:{t:"Web server",s:"example.com :443"}},m:[["client","server","encrypted HTTP request"],["server","client","encrypted response"]],t:`A direct client-to-server connection. Every site you visit is a separate HTTPS connection with its own keys.`}},
+
+sshtun:{name:"SSH tunnel",full:"SSH local port forwarding (ssh -L)",engine:"ssh",group:"app",scope:"port",
+ actors:[["app","DB tool","localhost:5432"],["sc","ssh client","your laptop"],["sd","sshd","bastion :22"],["db","Database","db.internal:5432"]],
+ plain:{line:`Carries one app's connection through an SSH server into a private network.`,analogy:`A pneumatic tube through the wall to one specific office.`,when:`Reaching a database or admin page that isn't exposed to the internet.`},
+ ph:{
+  reach:{s:[["sc","=","ssh -L 5432:db.internal:5432 bastion"],["sc","sd","TCP → port 22"],["sd","sc","SSH-2.0 banner"]],t:`The SSH client connects to the bastion's port 22 and starts listening on localhost:5432 on your laptop. Only port 22 has to be reachable from the internet.`},
+  keys:{s:[["sc","sd","KEXINIT · curve25519 key share"],["sd","sc","key share + host key signature"],["sc","sd","NEWKEYS"]],t:`SSH agrees on algorithms, then runs elliptic-curve Diffie-Hellman. The server signs the exchange with its host key.`},
+  identity:{s:[["sc","=","host key in known_hosts?"],["sc","sd","publickey auth (signed)"],["sd","sc","USERAUTH_SUCCESS"]],t:`The first connection asks you to trust the host key's fingerprint (trust on first use). After that, a changed key raises an alarm. You log in with a key pair whose public half is in authorized_keys on the bastion.`},
+  data:{s:[["app","sc","connect localhost:5432"],["sc","sd","CHANNEL_OPEN direct-tcpip db:5432"],["sd","db","plain TCP to db:5432"],["db","sd","query results"],["sd","sc","channel data (encrypted)"],["sc","app","results"]],t:`Each local connection becomes a channel inside the one SSH connection. The bastion opens an ordinary TCP connection to the database and copies bytes between the two.`},
+  eaves:{vis:[`Your IP and the bastion's IP`,`Port 22 and the SSH version banners`,`Traffic volume and timing`],hid:[`That a database is involved at all`,`Queries and results`,`Your username and key`],t:`Between the bastion and the database, the tunnel no longer protects anything. That hop relies on the private network, or on the database's own TLS.`},
+  alive:{s:[["sc","sd","keepalive (ServerAliveInterval)"],["sc","sd","rekey after ~1 GB or 1 h"],["sc","=","SSH drops → every forward drops"]],t:`Keepalives stop NAT routers forgetting the connection. If the SSH connection breaks, every forwarded connection breaks with it, so tools like autossh or a systemd unit restart it.`}},
+ cmp:{engine:"SSH",layer:"Application: TCP forwarding inside SSH",transport:"TCP 22",protects:"Chosen TCP ports",srv:"Host key (trust on first use) or SSH certificate",usr:"Key pair, password or SSH certificate",nat:"Good: one outbound TCP port",use:"Reaching a private database or admin UI through a bastion",watch:"The bastion-to-target hop is plain; one drop kills all forwards"},
+ packets:[{lbl:"Laptop → bastion (over the internet)",b:[["ip","IP","laptop → bastion",0],["tr","TCP","→ 22",0],["sec","SSH packet","length · padding",1],["tun","Channel data","direct-tcpip → db:5432",1],["app","Postgres query","SELECT * FROM …",1],["tag","MAC","",0]]},
+   {lbl:"Bastion → database (private network)",warn:"No tunnel protection on this hop: the query is in plain text unless the database uses its own TLS.",b:[["ip","IP","bastion → db.internal",0],["tr","TCP","→ 5432",0],["app","Postgres query","SELECT * FROM …",0]]}],
+ topo:{g:"tun",m:[["app","sshc","plain, never leaves the laptop"],["sshc","bastion","inside SSH (port 22)"],["bastion","db","plain on the private LAN"],["db","app","results come back the same way"]],t:`The tube runs from your laptop to the bastion. Only the bastion's port 22 is exposed to the internet; the database stays private.`}},
+
+/* ---------------- WHOLE NETWORK ---------------- */
+ipsec:{name:"IPsec",full:"IPsec with IKEv2",engine:"ipsec",group:"net",scope:"net",
+ actors:[["c","Laptop","IKE initiator"],["g","VPN gateway","office edge"],["h","File server","10.0.0.20"]],
+ plain:{line:`The classic standard VPN, built into operating systems and network equipment.`,analogy:`A permanent private bridge between two company sites.`,when:`Linking offices and cloud networks, or corporate remote access.`},
+ ph:{
+  reach:{s:[["c","g","UDP 500: IKE_SA_INIT"],["c","=","NAT detected → move to UDP 4500"]],t:`IKE runs over UDP port 500. If NAT is detected along the way, everything moves to UDP 4500 so the encrypted packets survive address translation (NAT traversal).`},
+  keys:{s:[["c","g","IKE_SA_INIT: DH share, nonce"],["g","c","IKE_SA_INIT: DH share, nonce"]],t:`The first exchange agrees on algorithms and runs Diffie-Hellman. That creates the IKE security association, which protects the rest of the negotiation.`},
+  identity:{s:[["c","g","IKE_AUTH: identity + cert or EAP"],["g","c","IKE_AUTH: gateway cert + CHILD_SA"]],t:`Both sides authenticate inside the encrypted IKE channel with certificates, pre-shared keys or EAP (user name and password, often checked by RADIUS). The same exchange sets up the first CHILD_SA: the keys for the actual traffic.`},
+  data:{s:[["c","g","ESP: encrypted packet for 10.0.0.20"],["g","h","decrypted packet on the office LAN"],["h","g","reply"],["g","c","ESP reply"]],t:`ESP (Encapsulating Security Payload) wraps each whole IP packet. In tunnel mode the inner packet, with its real destination, is encrypted, and a new outer IP header addresses the gateway.`},
+  eaves:{vis:[`Laptop and gateway IP addresses`,`UDP 500/4500, or IP protocol 50 (ESP)`,`SPI and sequence numbers`,`Packet sizes and timing`],hid:[`Inner source and destination addresses`,`Which apps and ports are used`,`All contents`],t:`IPsec normally lives in the operating system kernel, so it protects every app on the device.`},
+  alive:{s:[["c","g","NAT keepalive (UDP 4500)"],["c","g","CREATE_CHILD_SA (rekey)"],["c","g","INFORMATIONAL: dead peer check"]],t:`Keys are replaced on a timer, keepalives hold NAT mappings open, and dead peer detection notices when the other side disappears. The MOBIKE extension lets a client switch networks without reconnecting.`}},
+ cmp:{engine:"IKEv2 + ESP",layer:"Network: IP layer, in the kernel",transport:"UDP 500/4500, or IP protocol 50",protects:"All IP traffic between sites or devices",srv:"Certificate or pre-shared key",usr:"Certificate or EAP (password, MFA)",nat:"Medium: NAT-T helps, some networks block it",use:"Site-to-site links, corporate remote access, cloud VPN gateways",watch:"Complex configuration; vendor interoperability"},
+ packets:[{lbl:"Laptop → gateway (tunnel mode, NAT-T)",b:[["ip","Outer IP","laptop → gateway",0],["tr","UDP","4500 (NAT-T)",0],["tun","ESP header","SPI · sequence",0],["inner","Inner IP","10.0.0.5 → 10.0.0.20",1],["inner","Inner TCP","→ 445",1],["app","App data","SMB file read",1],["tun","ESP trailer","padding · next header",1],["tag","ICV","integrity tag",0]]}],
+ topo:{g:"hub",over:{gw:{t:"IPsec gateway",s:"IKEv2 · ESP"}},m:[["laptop","files","to 10.0.0.20, through the tunnel"],["laptop","intra","to 10.0.0.30, through the tunnel"],["files","laptop","reply"]],t:`Hub and spoke: all traffic for the office goes through the gateway, which decrypts it and puts it on the LAN. Site-to-site setups do the same between two gateways.`}},
+
+openvpn:{name:"OpenVPN",full:"OpenVPN (TLS-based VPN)",engine:"tls",group:"net",scope:"net",
+ actors:[["c","Laptop","tun0 10.8.0.6"],["s","OpenVPN server","UDP 1194"],["d","Office host","10.0.0.20"]],
+ plain:{line:`A popular open-source VPN that runs over TLS.`,analogy:`A private tunnel with a well-known entrance that most firewalls let through.`,when:`Self-hosted remote access, and many commercial VPN apps.`},
+ ph:{
+  reach:{s:[["c","s","UDP → 1194 (or TCP 443)"],["c","s","P_CONTROL_HARD_RESET"],["s","c","HARD_RESET reply"]],t:`OpenVPN runs in user space and normally uses UDP 1194. It can also run over TCP 443 to get through strict firewalls, at some cost in performance.`},
+  keys:{s:[["c","s","TLS ClientHello (control channel)"],["s","c","ServerHello · certificate"],["c","s","key material for data channel"]],t:`A complete TLS handshake runs inside OpenVPN's own reliable control channel. The resulting secrets produce separate keys for the data channel.`},
+  identity:{s:[["c","s","client certificate (+ user/password)"],["s","c","PUSH_REPLY: IP 10.8.0.6, routes, DNS"]],t:`Usually both sides have certificates from the organisation's own CA, optionally with a user name, password and multi-factor login. The server then pushes the client its tunnel address, routes and DNS settings.`},
+  data:{s:[["c","s","P_DATA: encrypted IP packet"],["s","d","decrypted packet forwarded"],["d","s","reply"],["s","c","P_DATA reply"]],t:`The OS routes packets into the virtual tun0 interface. OpenVPN reads them, encrypts them (AES-GCM or ChaCha20-Poly1305) and sends them over UDP.`},
+  eaves:{vis:[`Laptop and server IP addresses`,`UDP 1194 or TCP 443`,`OpenVPN message types, which firewalls can recognise`,`Packet sizes and timing`],hid:[`Inner addresses and destinations`,`All application traffic`],t:`Deep packet inspection can identify and block OpenVPN even on port 443, unless extra obfuscation is added.`},
+  alive:{s:[["c","s","ping every 10 s"],["c","s","TLS renegotiation (hourly)"],["c","=","network change → reconnect"]],t:`Pings detect dead links and keep NAT open. Data keys are refreshed with a new TLS handshake, by default every hour. Changing networks usually means a full reconnect.`}},
+ cmp:{engine:"TLS (control) + own data channel",layer:"Network, through a user-space TUN device",transport:"UDP 1194 or TCP 443",protects:"All IP traffic sent into the tunnel",srv:"Certificate from your own CA",usr:"Client certificate, password, MFA",nat:"Good: TCP 443 mode passes most firewalls",use:"Self-hosted remote access, commercial VPN apps",watch:"Slower than kernel VPNs; certificate management; detectable by DPI"},
+ packets:[{lbl:"Laptop → OpenVPN server",b:[["ip","IP","laptop → server",0],["tr","UDP","→ 1194",0],["tun","OpenVPN header","opcode · peer-id",0],["inner","Inner IP","10.8.0.6 → 10.0.0.20",1],["inner","Inner TCP","→ 443",1],["app","App data","any app",1],["tag","Tag","",0]]}],
+ topo:{g:"hub",over:{gw:{t:"OpenVPN server",s:"UDP 1194"}},m:[["laptop","files","to 10.0.0.20, through the tunnel"],["laptop","intra","to 10.0.0.30, through the tunnel"],["files","laptop","reply"]],t:`Also hub and spoke. In full-tunnel mode (redirect-gateway), even your general internet traffic goes through the server.`}},
+
+wireguard:{name:"WireGuard",full:"WireGuard",engine:"wg",group:"net",scope:"net",
+ actors:[["a","Peer A","wg0 10.0.0.1"],["b","Peer B","203.0.113.9:51820"]],
+ plain:{line:`A modern, small and fast VPN based on exchanging public keys.`,analogy:`Two houses that each keep a key to the other's private door, and simply ignore anyone who knocks without one.`,when:`Fast, simple VPNs between machines you set up yourself.`},
+ ph:{
+  reach:{s:[["a","=","Endpoint = 203.0.113.9:51820"],["a","b","first packet triggers handshake"]],t:`There's no connection to set up. Each peer has a configured endpoint, and the first packet sent to one of its AllowedIPs triggers a handshake over UDP.`},
+  keys:{s:[["a","b","Handshake Initiation (Noise IK)"],["b","a","Handshake Response"]],t:`A single round trip, based on the Noise protocol framework: fresh Curve25519 keys mixed with both peers' static keys. Session keys are new every time.`},
+  identity:{s:[["a","=","peer = its static public key"],["b","=","unknown key → stay silent"]],t:`A peer's identity is its static public key, listed in the other side's config. No certificates, user names or passwords: if the handshake works with the expected key, it's that peer.`},
+  data:{s:[["a","b","type 4: encrypted IP packet"],["b","a","type 4: reply"]],t:`Packets are encrypted with ChaCha20-Poly1305. Cryptokey routing ties each peer's key to the addresses it may use (AllowedIPs), so a packet's source address is authenticated as well.`},
+  eaves:{vis:[`Peer IP addresses and UDP port`,`Message type and receiver index`,`Packet sizes and timing`],hid:[`Inner addresses and all traffic`,`Peer identities (keys are encrypted in the handshake)`],t:`WireGuard never answers packets that don't authenticate, so a port scan can't tell it's there.`},
+  alive:{s:[["a","b","PersistentKeepalive (25 s)"],["a","b","new handshake every 2 minutes"],["b","=","A roams → endpoint updated"]],t:`Handshakes repeat every two minutes, so keys rotate constantly. When a peer moves to another network, the other side learns its new address from the next authenticated packet.`}},
+ cmp:{engine:"Noise IK: Curve25519, ChaCha20-Poly1305",layer:"Network: kernel module or user space",transport:"UDP, any port (51820 typical)",protects:"All IP traffic for the configured AllowedIPs",srv:"Static public key",usr:"Static public key (no user accounts)",nat:"OK with PersistentKeepalive; no NAT traversal of its own",use:"Fast, simple point-to-point and hub VPNs",watch:"Keys and IP addresses are managed by hand; UDP only"},
+ packets:[{lbl:"Peer A → Peer B",b:[["ip","IP","A → B",0],["tr","UDP","→ 51820",0],["tun","WireGuard header","type 4 · receiver · counter",0],["inner","Inner IP","10.0.0.1 → 10.0.0.2",1],["inner","Inner TCP/UDP","any port",1],["app","App data","any app",1],["tag","Poly1305 tag","16 bytes",0]]}],
+ topo:{g:"p2p",m:[["a","b","UDP 51820: encrypted IP"],["b","a","reply"],["a","c","separate keys per peer"]],t:`Each peer lists the others' public keys and endpoints. You can build point-to-point links, a hub, or a small mesh, but you manage every config file yourself.`}},
+
+tailscale:{name:"Tailscale",full:"Tailscale tailnet (WireGuard mesh)",engine:"wg",group:"net",scope:"net",
+ actors:[["a","Laptop","100.101.1.2"],["co","Coordination","login server"],["dr","DERP relay","HTTPS 443"],["b","Home server","100.101.1.9"]],
+ plain:{line:`WireGuard with the setup done for you: every device you own can reach the others directly.`,analogy:`Every one of your devices gets its own private door to every other, and a doorman checks your company badge.`,when:`Connecting laptops, phones and servers across homes, offices and clouds with almost no setup.`},
+ ph:{
+  reach:{s:[["a","co","log in (SSO: Google, Microsoft…)"],["co","a","netmap: peers, keys, endpoints"],["a","b","direct UDP probes (hole punching)"]],t:`Devices log in to a coordination server, which tells each one about the others: public keys, tailnet IPs (100.x.y.z) and candidate addresses. They then try to punch through NAT to talk directly.`},
+  keys:{s:[["a","b","WireGuard handshake (Noise IK)"],["b","a","handshake response"]],t:`The actual encryption is WireGuard. Each device generates its own key pair, and only the public key goes to the coordination server.`},
+  identity:{s:[["a","co","node key + user identity"],["co","a","access rules: who may reach whom"]],t:`Identity comes from your company or personal login (single sign-on), not from config files. Access rules decide which users and devices may connect, and each device enforces them itself.`},
+  data:{s:[["a","b","WireGuard, direct (UDP 41641)"],["a","dr","if direct fails: via DERP"],["dr","b","relayed, still end-to-end encrypted"]],t:`Most connections end up direct, peer to peer. When NAT or firewalls prevent that, traffic goes through a DERP relay over HTTPS port 443. The relay can't read it, because it's still WireGuard-encrypted.`},
+  eaves:{vis:[`Device IP addresses and UDP ports`,`Connections to coordination and DERP servers`,`Sizes and timing`],hid:[`All traffic between devices`,`Which services you use on them`],t:`The coordination server knows which devices are in your tailnet and where they are, but never sees traffic or private keys.`},
+  alive:{s:[["a","co","long poll: netmap updates"],["a","b","disco pings: look for a better path"],["a","=","switch networks → back in seconds"]],t:`Devices keep listening for changes to peers and rules. They keep testing paths, and move from a relay to a direct connection as soon as one opens up.`}},
+ cmp:{engine:"WireGuard + coordination service",layer:"Network (WireGuard), managed as a mesh",transport:"UDP 41641 direct; DERP over TCP 443 as fallback",protects:"All traffic between your devices, plus subnets and exit nodes",srv:"WireGuard keys handed out by the coordination server",usr:"SSO identity (Google, Microsoft, GitHub, OIDC) plus access rules",nat:"Excellent: hole punching with relay fallback",use:"Connecting personal or team devices and servers anywhere, with almost no setup",watch:"Relies on a coordination service (self-hostable as Headscale) and your identity provider"},
+ packets:[{lbl:"Direct path",b:[["ip","IP","laptop → server",0],["tr","UDP","→ 41641",0],["tun","WireGuard header","type 4",0],["inner","Inner IP","100.101.1.2 → 100.101.1.9",1],["app","App data","SSH, web, files…",1],["tag","Tag","",0]]},
+   {lbl:"Through a DERP relay (fallback)",b:[["ip","IP","laptop → DERP",0],["tr","TCP","→ 443",0],["tr","TLS record","type · length",0],["tun","DERP frame","to: node key",1],["inner","WireGuard packet","already encrypted end to end",1]]}],
+ topo:{g:"mesh",m:[["a","coord","fetch peers and keys"],["a","b","direct WireGuard (hole-punched)"],["a","derp","to the phone, via DERP"],["derp","c","relayed, still encrypted"]],t:`A mesh. The coordination server hands out keys and rules but carries no traffic. Devices connect directly, and fall back to a relay when NAT won't allow it.`}}
+};
+
+const GROUPS={
+ files:{name:"File transfer",short:"FTPS · SFTP · SCP",protos:["ftps","sftp","scp"],q:"What's the secure way to move files?",
+  diff:[`FTPS opens a control connection to port 21 and later separate data connections. SFTP and SCP use a single SSH connection on port 22 for everything.`,
+   `FTPS negotiates keys with TLS, upgrading from plain FTP with AUTH TLS. SFTP and SCP use the SSH key exchange. All three end up with modern elliptic-curve key agreement.`,
+   `FTPS servers prove themselves with a certificate, like websites. SSH servers use a host key the client remembers from the first visit (known_hosts). Users log in with passwords, or in SSH usually with key pairs.`,
+   `SFTP is a full file-system protocol (list, resume, rename) inside an SSH channel. SCP just streams a file to a remote command. FTPS is classic FTP commands plus a new TLS connection for each transfer.`,
+   `All three hide file names and contents. FTPS shows more structure: a new connection appears for every transfer, and the certificate may be visible. SSH shows its software version banner.`,
+   `SFTP sessions stay open and rekey automatically. FTPS keeps a control connection that firewalls may cut during long transfers. SCP copies once and exits, with no resume.`],
+  layerNote:`All three encrypt at the application layer, above TCP. The difference is the wrapper: FTPS uses TLS records and needs a second connection for data, while SFTP and SCP put everything inside SSH packets on one connection.`,
+  verdict:`Prefer SFTP: one port, strong defaults, resumable and easy to script. Use FTPS only when a partner requires FTP. Use SCP for quick copies by hand.`},
+ app:{name:"App & port",short:"HTTPS · SSH tunnel",protos:["https","sshtun"],q:"Protect one app, or carry one port through a pipe?",
+  diff:[`HTTPS connects straight to the service on port 443. An SSH tunnel connects to an SSH server on port 22 and reaches the real service from there.`,
+   `Both use fresh Diffie-Hellman keys (X25519 is typical), so both have forward secrecy. TLS 1.3 finishes in one round trip; SSH needs a little more back and forth.`,
+   `The biggest difference. HTTPS trusts certificate authorities, and the user usually logs in later inside the app. SSH trusts keys: the server's host key in known_hosts and the user's key in authorized_keys.`,
+   `HTTPS carries one application protocol (HTTP). An SSH tunnel can carry any TCP protocol (a database, remote desktop, an internal web app) by wrapping each connection in an SSH channel.`,
+   `With HTTPS an observer still sees the host name (SNI). With a tunnel they only see a connection to the SSH server, not which internal service is used. Behind the bastion, though, the traffic is plain again.`,
+   `HTTPS connections are cheap to recreate and resume with session tickets. If an SSH tunnel drops, every forwarded connection drops with it, so tools like autossh restart it.`],
+  layerNote:`HTTPS wraps one application protocol in TLS. An SSH tunnel wraps any TCP stream in SSH, but only as far as the bastion: the second bar shows the same query crossing the private network unencrypted.`,
+  verdict:`Use HTTPS for anything you publish. Use an SSH tunnel for occasional private access to one service, and move to a VPN or Tailscale once you need many services or many people.`},
+ net:{name:"Whole network",short:"IPsec · OpenVPN · WireGuard · Tailscale",protos:["ipsec","openvpn","wireguard","tailscale"],q:"How should whole devices and networks connect privately?",
+  diff:[`IPsec uses UDP 500/4500 (or raw ESP). OpenVPN uses UDP 1194 or TCP 443. WireGuard sends UDP to a fixed endpoint. Tailscale asks a coordination server where peers are, then punches through NAT to connect directly.`,
+   `IPsec runs a separate key-exchange protocol (IKEv2). OpenVPN runs a full TLS handshake inside its control channel. WireGuard and Tailscale use one Noise handshake: a single round trip, repeated every two minutes.`,
+   `IPsec and OpenVPN usually use certificates, or a user name and password. WireGuard uses only public keys listed in config files. Tailscale hands those WireGuard keys out for you and ties each device to a user's single sign-on identity and access rules.`,
+   `All four wrap entire IP packets, so every app is protected without knowing it. IPsec and OpenVPN usually route through a central gateway (hub and spoke). WireGuard is point to point per peer; Tailscale builds a mesh where devices talk directly.`,
+   `An observer sees encrypted packets between two addresses. OpenVPN's format is easy for firewalls to recognise. WireGuard doesn't answer unauthenticated packets at all, so scanners can't even tell it's there.`,
+   `IPsec uses dead peer detection and timed rekeying. OpenVPN pings and renegotiates TLS hourly. WireGuard rekeys every two minutes and follows peers that change networks; Tailscale also keeps looking for a better direct path.`],
+  layerNote:`VPNs encrypt the entire inner IP packet, including its real destination and ports. From outside you only see a packet between the two tunnel endpoints. Tailscale normally looks like WireGuard; through a DERP relay, its WireGuard packets also ride inside TLS.`,
+  verdict:`Tailscale for devices and teams that want it to just work. WireGuard for lean setups you control. IPsec for site-to-site links and standard network gear. OpenVPN when you need TCP 443 or an established self-hosted product.`}
+};
+const GROUP_IDS=["files","app","net"];
+
+const SCOPES=[
+ {id:"app",name:"Protect one app",protos:["https","ftps","sftp","scp"],
+  line:`Each app secures its own conversation. Your browser's HTTPS protects your banking, but not your other apps.`,
+  text:[`HTTPS, FTPS, SFTP and SCP each protect a single application's conversation. The app does the encryption itself, so it works on any network, even public Wi-Fi.`,`The catch: only that app is covered. Every other program on your device has to protect itself.`],
+  analogy:`A sealed envelope. Only that letter is private; everything else you post is up to you.`,remember:`App-level security travels with the app: it works anywhere, but only for that app.`},
+ {id:"port",name:"Protect one path",protos:["sshtun"],
+  line:`A private pipe carries one or a few connections through a server you trust, into a network you couldn't otherwise reach.`,
+  text:[`An SSH tunnel takes a connection that would normally go nowhere, such as to a database inside a company network, and carries it inside an SSH connection to a server that sits inside that network.`,`It's a quick, precise way in. But the protection stops at the server where the tube ends.`],
+  analogy:`A pneumatic tube from your desk to one office in a locked building. Only what you put in the tube gets through.`,remember:`A tunnel is private only as far as it goes.`},
+ {id:"net",name:"Protect the whole network",protos:["ipsec","openvpn","wireguard","tailscale"],
+  line:`Everything your device sends goes through an encrypted tunnel, as if you were plugged into the other network.`,
+  text:[`A VPN gives your device a virtual network card. Everything sent through it, from any app, is wrapped and encrypted until it reaches the other end of the tunnel.`,`Classic VPNs send everyone through one central gateway. Tailscale connects each device straight to the others.`],
+  analogy:`A private corridor between two buildings. Anyone and anything can walk through it, unseen from the street.`,remember:`A VPN protects every app at once, but only for the part of the trip inside the tunnel.`}
+];
+
+const DT={
+ start:{q:"What do you want to keep private?",o:[["A website or web API","r:https"],["Moving files","files"],["Reaching one service on a private network","r:sshtun"],["All traffic from my devices, or linking networks","net"]]},
+ files:{q:"Can you use SSH on the server?",o:[["Yes","r:sftp"],["No, the partner only offers FTP","r:ftps"],["Yes, and it's one quick copy","r:scp"]]},
+ net:{q:"What kind of setup?",o:[["Many devices, anywhere, minimal setup","r:tailscale"],["Linking office or cloud networks with standard gear","r:ipsec"],["A few servers I configure myself","r:wireguard"],["Self-hosted remote access through strict firewalls","r:openvpn"]]}
+};
+
+/* ============================================================
+   TOPOLOGY GRAPHS
+   ============================================================ */
+const TOPO={
+ cs:{vb:[1000,300],frames:[],nodes:{client:{x:150,y:150,t:"Your laptop",s:"client app"},router:{x:380,y:150,t:"Home router",s:"NAT"},net:{x:610,y:150,t:"Internet",s:"many hops"},server:{x:850,y:150,t:"Server",s:""}},
+  links:[["client","router",null,"Wi-Fi"],["router","net"],["net","server"]]},
+ ftps:{vb:[1000,320],frames:[{x:705,y:30,w:190,h:270,label:"Same server"}],nodes:{client:{x:150,y:165,t:"Your laptop",s:"FTP client"},router:{x:400,y:165,t:"Home router",s:"NAT + firewall"},ctl:{x:800,y:95,t:"FTPS :21",s:"control channel"},data:{x:800,y:245,t:"FTPS :50012",s:"data channel"}},
+  links:[["client","router"],["router","ctl",null,"control"],["router","data",null,"data"]]},
+ tun:{vb:[1000,330],frames:[{x:20,y:30,w:260,h:280,label:"Your laptop"},{x:600,y:30,w:380,h:280,label:"Private network"}],nodes:{app:{x:150,y:100,t:"Database tool",s:"→ localhost:5432"},sshc:{x:150,y:245,t:"ssh client",s:"-L 5432:db:5432"},net:{x:440,y:245,t:"Internet",s:"only port 22 visible"},bastion:{x:720,y:245,t:"Bastion",s:"sshd :22"},db:{x:860,y:100,t:"db.internal",s:"Postgres :5432"}},
+  links:[["app","sshc"],["sshc","net",null,"SSH"],["net","bastion",null,"SSH"],["bastion","db",null,"plain"]]},
+ hub:{vb:[1000,330],frames:[{x:560,y:30,w:420,h:290,label:"Office network"}],nodes:{laptop:{x:140,y:175,t:"Your laptop",s:"tunnel address"},net:{x:360,y:175,t:"Internet",s:"café Wi-Fi, ISP"},gw:{x:650,y:175,t:"Gateway",s:""},files:{x:870,y:95,t:"File server",s:"10.0.0.20"},intra:{x:870,y:255,t:"Intranet app",s:"10.0.0.30"}},
+  links:[["laptop","net"],["net","gw",null,"tunnel"],["gw","files"],["gw","intra"]]},
+ p2p:{vb:[1000,330],frames:[],nodes:{a:{x:150,y:170,t:"Peer A",s:"10.0.0.1"},net:{x:450,y:170,t:"Internet",s:"UDP"},b:{x:820,y:90,t:"Peer B",s:"203.0.113.9:51820"},c:{x:820,y:260,t:"Peer C",s:"198.51.100.4:51820"}},
+  links:[["a","net"],["net","b"],["net","c"]]},
+ mesh:{vb:[1000,330],frames:[],nodes:{coord:{x:500,y:60,t:"Coordination",s:"keys + rules, no traffic"},derp:{x:500,y:285,t:"DERP relay",s:"fallback · 443"},a:{x:140,y:170,t:"Laptop",s:"100.101.1.2"},b:{x:860,y:90,t:"Home server",s:"100.101.1.9"},c:{x:860,y:255,t:"Phone",s:"behind carrier NAT"}},
+  links:[["a","coord"],["b","coord"],["c","coord"],["a","b",null,"direct"],["a","derp"],["derp","c"]]}
+};
+const NW=142, NH=52;
+
+/* ============================================================
+   HELPERS + ANIMATION ENGINE
+   ============================================================ */
+const NS="http://www.w3.org/2000/svg";
+function S(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in (attrs||{}))e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ANIM={paused:false};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+function linkPts(g,l){const a=g.nodes[l[0]],b=g.nodes[l[1]];return [[a.x,a.y],...(l[2]||[]),[b.x,b.y]];}
+function route(g,from,to){
+  if(from===to)return [from];
+  const adj={};g.links.forEach(l=>{(adj[l[0]]=adj[l[0]]||[]).push(l[1]);(adj[l[1]]=adj[l[1]]||[]).push(l[0]);});
+  const prev={[from]:null},q=[from];
+  while(q.length){const n=q.shift();if(n===to)break;(adj[n]||[]).forEach(m=>{if(!(m in prev)){prev[m]=n;q.push(m);}});}
+  const path=[];let c=to;while(c!=null){path.unshift(c);c=prev[c];}return path;
+}
+function pathPts(g,nodes){let pts=[];for(let i=0;i<nodes.length-1;i++){const a=nodes[i],b=nodes[i+1];const l=g.links.find(l=>(l[0]===a&&l[1]===b)||(l[0]===b&&l[1]===a));let p=linkPts(g,l);if(l[0]!==a)p=p.slice().reverse();pts=pts.concat(i?p.slice(1):p);}return pts;}
+
+/* Moves a dot (and optional label) along polylines, one after another, looping. Honours ANIM.paused. */
+class Flow{
+  constructor(layer,items,{label=true,onActive=null,vbw=1000}={}){
+    this.layer=layer;this.items=items;this.label=label;this.onActive=onActive;this.vbw=vbw;this.last=-2;
+    let t=0;items.forEach(it=>{let L=0,seg=[];for(let i=1;i<it.pts.length;i++){const d=Math.hypot(it.pts[i][0]-it.pts[i-1][0],it.pts[i][1]-it.pts[i-1][1]);seg.push(d);L+=d;}
+      it.seg=seg;it.len=L;it.dur=Math.max(1600,Math.min(4200,L*4.2));it.start=t;t+=it.dur+450;});
+    this.total=t+1800;
+    this.trails=items.map(it=>S("polyline",{class:"trail",points:it.pts.map(p=>p.join(",")).join(" ")},layer));
+    this.dot=S("circle",{class:"pkt",r:7,cx:-50,cy:-50},layer);
+    if(label){this.pill=S("g",{class:"pill"},layer);this.pr=S("rect",{rx:5,height:20},this.pill);this.pt=S("text",{y:14,x:7},this.pill);}
+  }
+  at(it,f){let d=f*it.len;for(let i=0;i<it.seg.length;i++){if(d<=it.seg[i]||i===it.seg.length-1){const r=it.seg[i]?Math.min(1,d/it.seg[i]):1,a=it.pts[i],b=it.pts[i+1];return [a[0]+(b[0]-a[0])*r,a[1]+(b[1]-a[1])*r];}d-=it.seg[i];}return it.pts[0];}
+  start(){
+    if(!this.items.length)return;
+    if(reduced){this.trails.forEach(t=>t.classList.add("act"));this.dot.remove();if(this.pill)this.pill.remove();return;}
+    let last=performance.now(),el=0;
+    const loop=now=>{
+      if(!ANIM.paused)el+=now-last;last=now;
+      const tt=el%this.total;let idx=-1;
+      this.items.forEach((it,i)=>{if(tt>=it.start&&tt<it.start+it.dur)idx=i;});
+      if(idx!==this.last){this.trails.forEach((t,i)=>t.classList.toggle("act",i===idx));this.onActive&&this.onActive(idx);this.last=idx;}
+      if(idx<0){this.dot.setAttribute("cx",-50);if(this.pill)this.pill.setAttribute("transform","translate(-999,-999)");}
+      else{const it=this.items[idx],f=(tt-it.start)/it.dur,e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2,[x,y]=this.at(it,e);
+        this.dot.setAttribute("cx",x);this.dot.setAttribute("cy",y);
+        if(this.pill){if(this.pt.textContent!==it.label)this.pt.textContent=it.label;const w=it.label.length*6.7+14;this.pr.setAttribute("width",w);
+          const px=Math.max(4,Math.min(this.vbw-w-4,x-w/2)),py=Math.max(2,y-34);this.pill.setAttribute("transform",`translate(${px},${py})`);}}
+      this.raf=requestAnimationFrame(loop);
+    };
+    this.raf=requestAnimationFrame(loop);
+  }
+  stop(){cancelAnimationFrame(this.raf);}
+}
+
+/* Shared graph renderer (Topology view). */
+function drawGraph(host,g,msgs,{focus=[],notes=[],aria=""}){
+  const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+  const svg=S("svg",{viewBox:`0 0 ${g.vb[0]} ${g.vb[1]}`,role:"img","aria-label":aria},box);
+  (g.frames||[]).forEach(f=>{S("rect",{class:"frame",x:f.x,y:f.y,width:f.w,height:f.h,rx:12},svg);S("text",{class:"frame-lbl",x:f.x+12,y:f.y+16},svg,f.label);});
+  (g.bands||[]).forEach(b=>{S("rect",{class:"frame",x:b.x,y:b.y,width:b.w,height:b.h,rx:12},svg);
+    S("text",{class:"band-lbl",x:14,y:b.y+b.h/2-1},svg,b.label);S("text",{class:"band-sub",x:14,y:b.y+b.h/2+15},svg,b.sub);});
+  const active=new Set(focus),hot=new Set();
+  msgs.forEach(m=>{const r=route(g,m[0],m[1]);r.forEach(n=>active.add(n));for(let i=0;i<r.length-1;i++)hot.add([r[i],r[i+1]].sort().join("|"));});
+  g.links.forEach(l=>{const p=linkPts(g,l);S("polyline",{class:"link"+(hot.has([l[0],l[1]].sort().join("|"))?" hot":""),points:p.map(q=>q.join(",")).join(" ")},svg);
+    if(l[3]){const a=l[2]?p[1]:p[0],b=l[2]?p[2]:p[p.length-1];S("text",{class:"link-lbl",x:(a[0]+b[0])/2,y:(a[1]+b[1])/2-8,"text-anchor":"middle"},svg,l[3]);}});
+  for(const id in g.nodes){const n=g.nodes[id];const G=S("g",{class:"node"+(active.has(id)?" on":" dim"),transform:`translate(${n.x-NW/2},${n.y-NH/2})`},svg);
+    S("rect",{width:NW,height:NH,rx:9},G);S("text",{class:"t",x:NW/2,y:22,"text-anchor":"middle"},G,n.t);S("text",{class:"s",x:NW/2,y:39,"text-anchor":"middle"},G,n.s);}
+  const layer=S("g",{},svg);
+  const ol=document.createElement("ol");ol.className="log";
+  ol.innerHTML=msgs.map((m,i)=>`<li data-i="${i}"><span class="n">${i+1}</span><span><span class="who">${esc(g.nodes[m[0]].t)} → ${esc(g.nodes[m[1]].t)}</span><br>${esc(m[2])}</span></li>`).join("")+notes.map(t=>`<li class="note"><span class="n">·</span><span>${esc(t)}</span></li>`).join("");
+  host.appendChild(ol);
+  const flow=new Flow(layer,msgs.map(m=>({pts:pathPts(g,route(g,m[0],m[1])),label:m[2]})),{onActive:i=>ol.querySelectorAll("li[data-i]").forEach(li=>li.classList.toggle("act",+li.dataset.i===i)),vbw:g.vb[0]});
+  flow.start();return flow;
+}
+const ecol=p=>ENGINES[p.engine].color;
+const head=(host,title,hint)=>{const h=document.createElement("div");h.className="viz-head";h.innerHTML=`<h2>${title}</h2><span class="hint">${hint}</span>`;host.appendChild(h);};
+
+/* ============================================================
+   VIEW · HIGH LEVEL
+   ============================================================ */
+const HighView={
+  label:"High level",short:"The big picture",groups:false,
+  desc:"Three ways to keep traffic private, in plain language. Click a scene, a protocol or answer the questions to find the right one.",
+  steps(){return SCOPES.map(s=>s.name);},
+  render(host){
+    const si=state.i, flows=[], layers=[];
+    head(host,"Three ways to keep traffic private","What is protected: one app, one path, or everything");
+    const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+    const svg=S("svg",{viewBox:"0 0 1000 250",role:"img","aria-label":"Three scenes: protect one app, protect one path, protect the whole network"},box);
+    const dev=(g,x,y,t,w=66)=>{const d=S("g",{class:"dev"},g);S("rect",{x:x-w/2,y:y-18,width:w,height:36,rx:6},d);S("text",{x,y:y+4,"text-anchor":"middle"},d,t);};
+    SCOPES.forEach((sc,i)=>{
+      const x0=10+i*333, g=S("g",{class:"scene"+(i===si?" cur":" dim"),role:"button",tabindex:"0","aria-label":sc.name},svg);
+      S("rect",{class:"sbox",x:x0,y:8,width:313,height:234,rx:12},g);
+      S("text",{class:"sc-title",x:x0+14,y:34},g,sc.name);
+      S("text",{class:"sc-sub",x:x0+14,y:52},g,sc.protos.map(id=>P[id].name).join(" · "));
+      const layer=S("g",{style:"--c:var(--accent)"},null);let items=[];
+      if(sc.id==="app"){
+        S("line",{class:"sline",x1:x0+80,y1:118,x2:x0+232,y2:118},g);S("line",{class:"sline plain",x1:x0+80,y1:178,x2:x0+232,y2:178},g);
+        S("text",{class:"sc-cap",x:x0+156,y:106,"text-anchor":"middle"},g,"this app: encrypted");
+        S("text",{class:"sc-cap warn",x:x0+156,y:204,"text-anchor":"middle"},g,"other apps: on their own");
+        dev(g,x0+46,148,"Laptop");dev(g,x0+266,148,"Server");
+        items=[{pts:[[x0+80,118],[x0+232,118]],label:"sealed"},{pts:[[x0+80,178],[x0+232,178]],label:"not covered"}];
+      } else if(sc.id==="port"){
+        S("rect",{class:"frame",x:x0+128,y:66,width:176,height:166,rx:10},g);S("text",{class:"sc-cap",x:x0+138,y:82},g,"private network");
+        S("line",{class:"tube",x1:x0+78,y1:190,x2:x0+150,y2:190},g);
+        S("line",{class:"sline plain",x1:x0+196,y1:176,x2:x0+250,y2:132},g);
+        S("text",{class:"sc-cap warn",x:x0+250,y:176,"text-anchor":"middle"},g,"plain again");
+        dev(g,x0+46,190,"Laptop");dev(g,x0+173,190,"Bastion",52);dev(g,x0+262,118,"Database",70);
+        items=[{pts:[[x0+78,190],[x0+148,190]],label:"in the tube"},{pts:[[x0+196,176],[x0+246,135]],label:"plain"}];
+      } else {
+        S("rect",{class:"frame",x:x0+128,y:66,width:176,height:166,rx:10},g);S("text",{class:"sc-cap",x:x0+138,y:82},g,"office network");
+        S("line",{class:"tube",x1:x0+78,y1:150,x2:x0+150,y2:150},g);
+        S("line",{class:"sline plain",x1:x0+196,y1:140,x2:x0+236,y2:110},g);S("line",{class:"sline plain",x1:x0+196,y1:160,x2:x0+236,y2:192},g);
+        S("text",{class:"sc-cap",x:x0+46,y:200,"text-anchor":"middle"},g,"every app");
+        dev(g,x0+46,150,"Laptop");dev(g,x0+173,150,"Gateway",52);dev(g,x0+266,104,"Files",62);dev(g,x0+266,196,"Intranet",62);
+        items=[{pts:[[x0+78,150],[x0+150,150]],label:"web"},{pts:[[x0+78,150],[x0+150,150]],label:"email"},{pts:[[x0+78,150],[x0+150,150]],label:"files"}];
+      }
+      layers.push([layer,items]);
+      g.addEventListener("click",()=>{state.hl=null;go(i);});
+      g.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();state.hl=null;go(i);}});
+    });
+    layers.forEach(([layer,items])=>{svg.appendChild(layer);const f=new Flow(layer,items,{vbw:1000});f.start();flows.push(f);});  /* on top of all scenes so labels aren't covered */
+    this.flows=flows;
+    host.insertAdjacentHTML("beforeend",`<h3 class="sub">The family</h3><p class="subtext">Grouped by what they protect. The colour shows the engine underneath; same colour means related security. Click one for a plain explanation.</p>`);
+    const fam=document.createElement("div");fam.className="family";
+    fam.innerHTML=SCOPES.map((sc,i)=>`<div class="fcol${i===si?" cur":""}"><h4>${esc(sc.name)}</h4>${sc.protos.map(id=>{const p=P[id];return `<button type="button" class="chip-p${state.hl===id?" on":""}" style="--c:${ecol(p)}" data-proto="${id}"><b>${esc(p.name)}</b><span class="e">${esc(ENGINES[p.engine].name)}</span><span class="l">${esc(p.plain.line)}</span></button>`;}).join("")}</div>`).join("");
+    host.appendChild(fam);
+    host.insertAdjacentHTML("beforeend",`<h3 class="sub">Which one should I use?</h3>`);
+    const dt=document.createElement("div");dt.className="dt";host.appendChild(dt);
+    const path=state.dtPath, cur=path[path.length-1];
+    if(cur.startsWith("r:")){const p=P[cur.slice(2)];
+      dt.style.setProperty("--c",ecol(p));
+      dt.innerHTML=`<div class="res"><span>Try</span><b>${esc(p.name)}</b><span>${esc(p.plain.line)}</span></div><div class="opts" style="margin-top:10px"><button type="button" class="opt" data-proto="${cur.slice(2)}">Explain it</button><button type="button" class="opt" data-compare="${cur.slice(2)}">Compare it with similar ones</button><button type="button" class="opt" data-dt-reset="1">Start over</button></div>`;
+    } else {const n=DT[cur];
+      dt.innerHTML=`<p class="q">${esc(n.q)}</p><div class="opts">${n.o.map(o=>`<button type="button" class="opt" data-dt="${o[1]}">${esc(o[0])}</button>`).join("")}</div>${path.length>1?`<p class="trail-txt"><button type="button" class="linkbtn" data-dt-reset="1">Start over</button></p>`:""}`;}
+  },
+  notes(n){
+    if(state.hl){const p=P[state.hl],sc=SCOPES.find(s=>s.protos.includes(state.hl));
+      n.style.setProperty("--c",ecol(p));
+      return `<p class="kicker">High level · ${esc(sc.name)}</p><h2>${esc(p.name)}</h2><p class="sum">${esc(p.plain.line)}</p>
+        <div class="facts"><span class="chip">${esc(p.full)}</span><span class="chip">engine: ${esc(ENGINES[p.engine].name)}</span></div>
+        <div class="say"><h3>Everyday comparison</h3><p>${esc(p.plain.analogy)}</p></div>
+        <h3>When to use it</h3><p>${esc(p.plain.when)}</p>
+        <h3>Built on ${esc(ENGINES[p.engine].name)}</h3><p>Trust model: ${esc(ENGINES[p.engine].trust)}. Also used by ${esc(ENGINES[p.engine].used)}.</p>
+        <button type="button" class="btn" data-compare="${state.hl}">Compare with ${esc(GROUPS[p.group].protos.filter(x=>x!==state.hl).map(x=>P[x].name).join(", "))}</button>`;}
+    const sc=SCOPES[state.i];n.style.setProperty("--c","var(--accent)");
+    return `<p class="kicker">Scope ${state.i+1} of ${SCOPES.length} · High level</p><h2>${esc(sc.name)}</h2><p class="sum">${esc(sc.line)}</p>
+      ${sc.text.map(t=>`<p>${esc(t)}</p>`).join("")}
+      <div class="say"><h3>Everyday comparison</h3><p>${esc(sc.analogy)}</p></div>
+      <h3>Remember</h3><p>${esc(sc.remember)}</p>
+      <h3>The engines underneath</h3>${Object.values(ENGINES).map(e=>`<p><b style="color:${e.color}">${esc(e.name)}</b>: ${esc(e.trust)}. Used by ${esc(e.used)}.</p>`).join("")}`;
+  },
+  stop(){(this.flows||[]).forEach(f=>f.stop());}
+};
+
+/* ============================================================
+   VIEW · SIDE BY SIDE (phases)
+   ============================================================ */
+function seqPanel(p,phase){
+  const ph=p.ph[phase.id];
+  const card=document.createElement("div");card.className="pcard";card.style.setProperty("--c",ecol(p));
+  card.innerHTML=`<div class="pc-head"><b>${esc(p.name)}</b><span class="eng">${esc(ENGINES[p.engine].name)}</span></div>`;
+  if(phase.id==="eaves"){
+    card.insertAdjacentHTML("beforeend",`<div class="eaves"><div><h4>Visible</h4><ul class="vis">${ph.vis.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div><div><h4>Hidden</h4><ul class="hid">${ph.hid.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div></div><p class="pc-text">${esc(ph.t)}</p>`);
+    return {card,flow:null};
+  }
+  const d=seqDiagram(p.actors,ph.s,`${p.name}: ${phase.name}`);card.appendChild(d.box);
+  card.insertAdjacentHTML("beforeend",`<p class="pc-text">${esc(ph.t)}</p>`);
+  return {card,flow:d.flow};
+}
+/* Generic animated sequence diagram: actors [[id,label,sub]], rows [from,to,label] or [lane,"=",note]. */
+function seqDiagram(A,rows,aria){
+  const n=A.length,W=Math.max(360,n*150),LW=(W-20)/n,X=i=>10+LW*(i+.5),xi=id=>X(A.findIndex(a=>a[0]===id));
+  const H=58+rows.length*36+6;
+  const box=document.createElement("div");box.className="pc-svg";
+  const svg=S("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":aria,style:`min-width:${Math.round(W*.85)}px`},box);
+  A.forEach((a,i)=>{S("text",{class:"lane-h",x:X(i),y:18,"text-anchor":"middle"},svg,a[1]);S("text",{class:"lane-s",x:X(i),y:33,"text-anchor":"middle"},svg,a[2]);S("line",{class:"lifeline",x1:X(i),x2:X(i),y1:42,y2:H-2},svg);});
+  const items=[];
+  rows.forEach((r,ri)=>{const y=70+ri*36;
+    if(r[1]==="="){const x=xi(r[0]),w=Math.min(W-12,r[2].length*6.4+18),cx=Math.max(6+w/2,Math.min(W-6-w/2,x));const g=S("g",{class:"snote"},svg);S("rect",{x:cx-w/2,y:y-15,width:w,height:22,rx:5},g);S("text",{x:cx,y:y,"text-anchor":"middle"},g,r[2]);}
+    else{const x1=xi(r[0]),x2=xi(r[1]),dir=x2>x1?1:-1;
+      S("line",{class:"arrow",x1,y1:y,x2:x2-dir*7,y2:y},svg);S("polygon",{class:"arrowhead",points:`${x2},${y} ${x2-dir*9},${y-5} ${x2-dir*9},${y+5}`},svg);
+      const lw=r[2].length*6.3,cx=Math.max(6+lw/2,Math.min(W-6-lw/2,(x1+x2)/2));
+      S("text",{class:"alabel",x:cx,y:y-7,"text-anchor":"middle"},svg,r[2]);items.push({pts:[[x1,y],[x2,y]],label:r[2]});}
+  });
+  const layer=S("g",{},svg);
+  return {box,flow:new Flow(layer,items,{label:false,vbw:W})};
+}
+const SideView={
+  label:"Side by side",short:"Compare phase by phase",groups:true,
+  desc:"Every protocol in the group, going through the same phase at the same time. Step through the six phases to compare how each one reaches, agrees keys, proves identity, carries data, leaks and stays alive.",
+  steps(){return PHASES.map(p=>p.name);},
+  render(host){
+    const G=GROUPS[state.group],ph=PHASES[state.i];
+    head(host,`${esc(G.name)} · ${esc(ph.name)}`,esc(ph.q));
+    const grid=document.createElement("div");grid.className="pgrid";host.appendChild(grid);
+    this.flows=G.protos.map(id=>{const {card,flow}=seqPanel(P[id],ph);grid.appendChild(card);flow&&flow.start();return flow;}).filter(Boolean);
+  },
+  notes(n){const G=GROUPS[state.group],ph=PHASES[state.i];n.style.setProperty("--c","var(--accent)");
+    return `<p class="kicker">Phase ${state.i+1} of ${PHASES.length} · ${esc(G.name)}</p><h2>${esc(ph.name)}</h2><p class="sum">${esc(ph.q)}</p><p>${esc(ph.text)}</p>
+      <div class="say"><h3>The difference in this group</h3><p>${esc(G.diff[state.i])}</p></div>
+      <h3>In this group</h3><div class="facts">${G.protos.map(id=>`<span class="chip" style="border-color:${ecol(P[id])}">${esc(P[id].name)} · ${esc(ENGINES[P[id].engine].name)}</span>`).join("")}</div>`;},
+  stop(){(this.flows||[]).forEach(f=>f.stop());}
+};
+
+/* ============================================================
+   VIEW · LAYER STACK
+   ============================================================ */
+function packetHTML(bar){
+  const n=bar.b.length;let h="",open=false;
+  bar.b.forEach((b,i)=>{
+    if(b[3]&&!open){h+=`<div class="encwrap">`;open=true;}
+    if(!b[3]&&open){h+=`</div>`;open=false;}
+    h+=`<div class="blk k-${b[0]}" style="animation-delay:${((n-1-i)*.35).toFixed(2)}s"><b>${esc(b[1])}</b>${b[2]?`<small>${esc(b[2])}</small>`:""}</div>`;
+  });
+  if(open)h+=`</div>`;
+  return h;
+}
+const LayerView={
+  label:"Layer stack",short:"Where the encryption sits",groups:true,
+  desc:"What one packet looks like on the wire for each protocol. Blocks build from the inside out; everything in the dashed box is encrypted and looks like random bytes to anyone watching.",
+  steps(){return null;},
+  render(host){
+    const G=GROUPS[state.group];
+    head(host,`${esc(G.name)} · one packet each`,"Outer headers left, payload right · dashed box = encrypted");
+    G.protos.forEach(id=>{const p=P[id];
+      const c=document.createElement("div");c.className="lcard";c.style.setProperty("--c",ecol(p));
+      c.innerHTML=`<h3>${esc(p.name)} <span class="eng">${esc(ENGINES[p.engine].name)}</span></h3><p class="where">${esc(p.cmp.layer)}</p>`+
+        p.packets.map(bar=>`<div class="barlbl">${esc(bar.lbl)}</div><div class="packet">${packetHTML(bar)}</div>${bar.warn?`<p class="plainwarn">${esc(bar.warn)}</p>`:""}`).join("");
+      host.appendChild(c);});
+  },
+  notes(n){const G=GROUPS[state.group];n.style.setProperty("--c","var(--accent)");
+    return `<p class="kicker">Layer stack · ${esc(G.name)}</p><h2>Where the encryption sits</h2><p class="sum">${esc(G.layerNote)}</p>
+      <h3>How to read the packets</h3><p>Each bar is one packet, outermost header on the left. Routers on the way can only read what's outside the dashed box: addresses, ports and a few protocol fields. The receiver unwraps it from the outside in.</p>
+      <div class="say"><h3>Rule of thumb</h3><p>The lower the layer where encryption starts, the more it hides, and the more traffic it covers.</p></div>`;},
+  stop(){}
+};
+
+/* ============================================================
+   VIEW · TOPOLOGY
+   ============================================================ */
+const TopoView={
+  label:"Topology",short:"Who connects to whom",groups:true,
+  desc:"The shape of the connection for one protocol at a time: direct client-server, a tube through a bastion, hub and spoke, point to point, or a mesh. Step through the protocols in the group.",
+  steps(){return GROUPS[state.group].protos.map(id=>P[id].name);},
+  render(host){
+    const p=P[GROUPS[state.group].protos[state.i]],T=p.topo,base=TOPO[T.g];
+    const g={...base,nodes:{...base.nodes}};for(const k in (T.over||{}))g.nodes[k]={...g.nodes[k],...T.over[k]};
+    host.style.setProperty("--c",ecol(p));
+    head(host,`${esc(p.name)} · ${esc(p.full)}`,"Moving dots are traffic · highlighted boxes take part");
+    this.flow=drawGraph(host,g,T.m,{aria:`Topology of ${p.name}`});
+  },
+  notes(n){const p=P[GROUPS[state.group].protos[state.i]];n.style.setProperty("--c",ecol(p));
+    return `<p class="kicker">Topology · ${esc(GROUPS[state.group].name)}</p><h2>${esc(p.name)}</h2><p class="sum">${esc(p.topo.t)}</p>
+      <div class="facts"><span class="chip">${esc(p.cmp.transport)}</span><span class="chip">${esc(ENGINES[p.engine].name)}</span></div>
+      <h3>Protects</h3><p>${esc(p.cmp.protects)}</p><h3>NAT and firewalls</h3><p>${esc(p.cmp.nat)}</p><h3>Watch out for</h3><p>${esc(p.cmp.watch)}</p>`;},
+  stop(){this.flow&&this.flow.stop();}
+};
+
+/* ============================================================
+   VIEW · COMPARE TABLE
+   ============================================================ */
+const ROWS=[["engine","Engine"],["layer","Layer"],["transport","Transport and ports"],["protects","Protects"],["srv","Server proves itself with"],["usr","Users log in with"],["nat","NAT and firewalls"],["use","Typical use"],["watch","Watch out for"]];
+const CompareView={
+  label:"Compare",short:"The whole group in a table",groups:true,
+  desc:"Every protocol in the group against the same questions. Use the group picker or the arrows to switch groups.",
+  steps(){return null;},
+  render(host){
+    const G=GROUPS[state.group];
+    head(host,`${esc(G.name)} · ${esc(G.q)}`,"Columns are protocols, rows are the same questions");
+    const box=document.createElement("div");box.className="scroll-x";
+    box.innerHTML=`<table class="ctable"><thead><tr><th></th>${G.protos.map(id=>`<th scope="col" style="--c:${ecol(P[id])}">${esc(P[id].name)}<small>${esc(P[id].full)}</small></th>`).join("")}</tr></thead><tbody>`+
+      ROWS.map(([k,l])=>`<tr><th scope="row">${l}</th>${G.protos.map(id=>`<td>${esc(P[id].cmp[k])}</td>`).join("")}</tr>`).join("")+`</tbody></table>`;
+    host.appendChild(box);
+    host.insertAdjacentHTML("beforeend",`<div class="verdict"><b>Rule of thumb.</b> ${esc(G.verdict)}</div>`);
+  },
+  notes(n){const G=GROUPS[state.group];n.style.setProperty("--c","var(--accent)");
+    return `<p class="kicker">Compare · group ${GROUP_IDS.indexOf(state.group)+1} of 3</p><h2>${esc(G.name)}</h2><p class="sum">${esc(G.q)}</p>
+      <div class="say"><h3>Rule of thumb</h3><p>${esc(G.verdict)}</p></div>
+      <h3>Why these belong together</h3><p>${esc(G.layerNote)}</p>`;},
+  stop(){}
+};
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+/* ============================================================
+   DEPTH 3 · DEEP INTERNALS
+   Topics per group. kind: "bytes" (field layouts: [name, size, clear|enc|tag|mix, description]),
+   "graph" (a DGRAPH id plus messages) or "seq" (actors + rows, same format as the phases).
+   ============================================================ */
+const DGRAPH={
+ sshd:{vb:[1060,400],
+  bands:[{x:100,y:40,w:956,h:80,label:"USER SPACE",sub:"processes"},{x:100,y:170,w:956,h:80,label:"KERNEL",sub:"sockets · files"},{x:100,y:305,w:956,h:80,label:"HARDWARE",sub:"devices"}],
+  nodes:{listener:{x:180,y:80,t:"sshd",s:"root · listens :22"},monitor:{x:360,y:80,t:"sshd-session",s:"monitor · root"},preauth:{x:540,y:80,t:"Pre-auth child",s:"unprivileged · sandbox"},postauth:{x:720,y:80,t:"Session child",s:"runs as alice"},sftp:{x:900,y:80,t:"sftp-server",s:"alice · subsystem"},
+   sock:{x:180,y:210,t:"TCP socket",s:"port 22"},ipc:{x:540,y:210,t:"socketpair",s:"monitor ⇄ child"},fs:{x:900,y:210,t:"File system",s:"alice's permissions"},
+   nic:{x:180,y:345,t:"Network card",s:"packets in"},disk:{x:900,y:345,t:"Disk",s:"/reports/q3.csv"}},
+  links:[["nic","sock"],["sock","listener"],["listener","monitor",null,"fork + exec"],["monitor","ipc"],["ipc","preauth"],["monitor","postauth",[[360,24],[720,24]],"after login"],["postauth","sftp",null,"exec"],["sftp","fs"],["fs","disk"],["sock","preauth",[[250,145],[470,145]]]]},
+ keysched:{vb:[1060,320],frames:[],
+  nodes:{psk:{x:140,y:70,t:"PSK or zeros",s:"resumption key"},early:{x:330,y:70,t:"Early secret",s:"HKDF-Extract"},hs:{x:540,y:70,t:"Handshake secret",s:"HKDF-Extract"},master:{x:760,y:70,t:"Master secret",s:"HKDF-Extract"},resum:{x:950,y:70,t:"Resumption secret",s:"→ session tickets"},
+   ecdhe:{x:330,y:250,t:"ECDHE secret",s:"X25519(a, B)"},hst:{x:540,y:250,t:"Handshake keys",s:"protect cert, Finished"},app:{x:760,y:250,t:"Traffic keys",s:"protect HTTP data"},tr:{x:650,y:160,t:"Transcript hash",s:"all handshake msgs"}},
+  links:[["psk","early"],["early","hs",null,"Derive-Secret"],["ecdhe","hs"],["hs","hst"],["hs","master",null,"Derive-Secret"],["master","app"],["master","resum"],["tr","hst"],["tr","app"]]},
+ trust:{vb:[1060,330],frames:[{x:20,y:20,w:500,h:300,label:"HTTPS · chain of trust"},{x:550,y:20,w:490,h:300,label:"SSH · keys you pin"}],
+  nodes:{browser:{x:140,y:100,t:"Browser",s:"certificate verifier"},leaf:{x:390,y:100,t:"Server certificate",s:"SAN www.example.com"},inter:{x:390,y:250,t:"Intermediate CA",s:"signs server certs"},root:{x:140,y:250,t:"Root store",s:"~150 trusted roots"},
+   client:{x:680,y:100,t:"ssh client",s:"verifier"},hostkey:{x:920,y:100,t:"Host key",s:"ssh-ed25519 AAAA…"},kh:{x:680,y:250,t:"known_hosts",s:"saved on first use"},sshca:{x:920,y:250,t:"SSH CA (optional)",s:"@cert-authority"}},
+  links:[["browser","leaf"],["leaf","inter",null,"signed by"],["inter","root",null,"signed by"],["browser","root",null,"built in"],["client","hostkey"],["client","kh"],["hostkey","sshca",null,"signed by"]]},
+ ftpsfw:{vb:[1000,320],frames:[{x:700,y:30,w:200,h:270,label:"FTPS server"}],
+  nodes:{client:{x:140,y:165,t:"FTP client",s:"192.168.1.23"},router:{x:420,y:165,t:"NAT router",s:"FTP helper (ALG)"},ctl:{x:800,y:95,t:"Port 21",s:"control"},data:{x:800,y:245,t:"Ports 50000–50100",s:"passive range"}},
+  links:[["client","router"],["router","ctl"],["router","data"]]},
+ vpnhost:{vb:[1060,400],
+  bands:[{x:100,y:40,w:956,h:80,label:"USER SPACE",sub:"processes"},{x:100,y:170,w:956,h:80,label:"KERNEL",sub:"network stack"},{x:100,y:305,w:956,h:80,label:"HARDWARE",sub:"devices"}],
+  nodes:{app:{x:180,y:80,t:"Any app",s:"browser, ssh, SMB…"},daemon:{x:540,y:80,t:"VPN process",s:"openvpn · tailscaled"},ike:{x:900,y:80,t:"IKE daemon",s:"charon (strongSwan)"},
+   sock:{x:180,y:210,t:"Socket layer",s:"TCP / UDP"},route:{x:360,y:210,t:"Routing table",s:"10.0.0.0/8 → tunnel"},tun:{x:540,y:210,t:"Tunnel interface",s:"tun0 · wg0 · utun"},xfrm:{x:720,y:210,t:"Kernel crypto",s:"WireGuard · IPsec xfrm"},drv:{x:900,y:210,t:"Wi-Fi driver",s:"outer packets"},
+   nic:{x:900,y:345,t:"Wi-Fi chip",s:"radio"}},
+  links:[["app","sock",null,"send()"],["sock","route"],["route","tun"],["tun","xfrm"],["xfrm","drv"],["tun","daemon",null,"read()"],["daemon","sock",[[470,140],[250,140]]],["route","drv",[[360,284],[840,284]],"outer packet"],["drv","nic"],["ike","xfrm",null,"installs keys"]]}
+};
+
+const DEEPT={
+ files:[
+  {id:"sshpkt",title:"The SSH binary packet",protos:["sftp","scp","sshtun"],kind:"bytes",
+   sum:`Every SSH message travels in one packet format. After the key exchange, almost all of it is encrypted.`,
+   layouts:[{lbl:"SSH packet with chacha20-poly1305@openssh.com (RFC 4253 framing)",f:[
+    ["packet_length",4,"enc","Length of everything that follows. With chacha20-poly1305 it's encrypted with its own key, so an observer can't read packet boundaries. With AES-GCM it stays visible as associated data."],
+    ["padding_length",1,"enc","How many random padding bytes sit at the end (at least 4)."],
+    ["payload","n","enc","The SSH message: a message number (94 = CHANNEL_DATA, for example) and its fields. For SFTP, this is the channel data carrying the SFTP request."],
+    ["random padding","4–255 B","enc","Random bytes that round the length up to the block size and blur the real message size."],
+    ["Poly1305 tag",16,"tag","Authenticates the encrypted length and payload. A single flipped bit and the receiver drops the connection."]]}],
+   text:[`Everything in SSH, from the key exchange to file data, travels in this one packet format. Before NEWKEYS the same fields go out in clear; afterwards everything except the tag is encrypted.`,
+    `Sequence numbers are never sent. Both sides count packets, and the count feeds the nonce and the MAC, so a replayed, dropped or reordered packet fails the check.`,
+    `The 2023 Terrapin attack manipulated those counters during the handshake. The fix, "strict KEX", resets them at NEWKEYS and is on by default in current OpenSSH.`],
+   facts:[`RFC 4253`,`implicit sequence numbers`,`strict KEX`],
+   say:`SSH packets carry an encrypted length, payload and random padding plus a MAC, with implicit sequence numbers.`},
+  {id:"sftpmsg",title:"An SFTP request, byte by byte",protos:["sftp"],kind:"bytes",
+   sum:`SFTP is its own request/response protocol, framed inside an SSH channel.`,
+   layouts:[{lbl:"SSH_FXP_READ request",f:[
+    ["length",4,"enc","Length of this SFTP message. SFTP frames its own messages inside the SSH channel's byte stream."],
+    ["type = 5 (READ)",1,"enc","SFTP message type: OPEN = 3, READ = 5, WRITE = 6, STATUS = 101, DATA = 103."],
+    ["request-id",4,"enc","Matches each reply to its request, so a client can keep many reads in flight. That pipelining is why SFTP is fast despite round trips."],
+    ["handle","string","enc","An opaque handle returned by an earlier OPEN."],
+    ["offset",8,"enc","Byte position in the file. This is what makes resuming and parallel chunks possible."],
+    ["length to read",4,"enc","How many bytes to read, typically 32 KB or more."]]},
+    {lbl:"…carried in an SSH CHANNEL_DATA message",f:[
+    ["msg 94",1,"enc","SSH_MSG_CHANNEL_DATA."],
+    ["recipient channel",4,"enc","The channel number the other side chose. One SSH connection can run many channels at once: an SFTP session, a shell, port forwards."],
+    ["data length",4,"enc","Length of the data that follows."],
+    ["data","n","enc","The SFTP bytes above. Each side may only send as much as the other side's channel window allows."]]}],
+   text:[`OpenSSH speaks SFTP version 3 (an IETF draft that never became an RFC). It's a remote file-system protocol: open, read, write, stat, rename, readdir, each with a request ID.`,
+    `Throughput depends on how many requests are in flight. OpenSSH's sftp keeps up to 64 outstanding by default. On high-latency links the SSH channel window can also become the limit, which is why patches like HPN-SSH enlarge it.`],
+   facts:[`SFTP v3`,`request IDs`,`pipelining`,`channel window`],
+   say:`SFTP frames typed, numbered requests with handles and offsets inside an SSH channel, so it can pipeline and resume.`},
+  {id:"ftpsfw",title:"FTPS and the firewall problem",protos:["ftps"],kind:"graph",g:"ftpsfw",
+   sum:`Why FTPS and NAT routers don't get along.`,
+   m:[["client","ctl","PASV (encrypted)"],["ctl","client","227 reply: the helper can't read it"],["client","data","new connection to :50012"]],
+   notes:[`Plain FTP: the router's FTP helper reads the 227 reply and opens the data port automatically.`,`FTPS: the reply is encrypted, so the passive range must be opened, and the server's public IP configured, by hand.`],
+   text:[`Plain FTP announces data ports inside its command stream. NAT routers and firewalls carry an FTP helper (an application-level gateway, nf_conntrack_ftp on Linux) that reads PASV and PORT replies, opens the matching port and even rewrites the IP address inside the message.`,
+    `With FTPS the control channel is encrypted, so the helper sees nothing. Admins must open a fixed passive port range on every firewall and tell the server its public address (pasv_address in vsftpd, for example). Active mode, where the server connects back to the client, rarely survives NAT at all.`,
+    `The CCC command (clear command channel) can drop encryption after login so firewalls can read again, but it gives away part of the protection and is rarely supported.`],
+   facts:[`ALG / nf_conntrack_ftp`,`passive port range`,`pasv_address`,`CCC`],
+   say:`FTPS encrypts the PASV replies that firewalls used to read, so data ports must be opened and configured manually.`},
+  {id:"sshd",title:"Inside the SSH server",protos:["sftp","scp","sshtun"],kind:"graph",g:"sshd",
+   sum:`How OpenSSH's server splits itself up so a bug in network parsing doesn't hand out root.`,
+   m:[["nic","listener","new TCP connection"],["listener","monitor","fork + exec sshd-session"],["monitor","preauth","fork: untrusted input goes here"],["sock","preauth","encrypted SSH packets"],["preauth","monitor","is this key allowed for alice?"],["monitor","postauth","yes: become user alice"],["postauth","sftp","subsystem sftp"],["sftp","disk","open() + read() as alice"]],
+   text:[`The listening sshd only accepts connections. For each one it starts sshd-session (a separate program since OpenSSH 9.8), which forks a pre-authentication child. That child parses everything the network sends, but runs as an unprivileged user, chrooted to an empty directory, inside a system-call sandbox (seccomp on Linux, pledge on OpenBSD).`,
+    `Anything that needs privileges, such as checking a key against authorized_keys or verifying a password, is a request over a socketpair to the monitor, which still runs as root and answers only a small set of questions.`,
+    `After login the session runs as the user. "Subsystem sftp" starts sftp-server, or the built-in internal-sftp, which can be locked into a ChrootDirectory for SFTP-only accounts. Normal file permissions then decide what alice can read.`],
+   facts:[`privilege separation`,`sshd-session (9.8)`,`seccomp / pledge`,`internal-sftp + ChrootDirectory`],
+   say:`sshd uses privilege separation: an unprivileged sandboxed child parses network input, and a small root monitor answers authentication questions.`}
+ ],
+ app:[
+  {id:"keysched",title:"The TLS 1.3 key schedule",protos:["https","ftps","openvpn"],kind:"graph",g:"keysched",
+   sum:`How one Diffie-Hellman result becomes a whole family of keys.`,
+   m:[["ecdhe","hs","shared secret"],["psk","early","zeros (fresh connection)"],["early","hs","derived salt"],["hs","hst","client + server handshake keys"],["tr","hst","keys bound to the transcript"],["hs","master","derived salt"],["master","app","key + IV for each direction"],["master","resum","for tickets and 0-RTT"]],
+   text:[`TLS 1.3 (RFC 8446, section 7.1) runs everything through HKDF. Extract mixes in new secret material; Expand derives labelled keys from it. The chain goes: early secret (from a resumption key, or zeros), then handshake secret (mixing in the ECDHE result), then master secret.`,
+    `Every derived key also mixes in a hash of all handshake messages so far (the transcript). If an attacker changes a single handshake byte, the two sides derive different keys and the Finished check fails.`,
+    `Each direction gets its own key and IV. The nonce for each record is the IV XOR a record counter that is never sent. KeyUpdate messages roll the traffic keys forward on long connections.`],
+   facts:[`HKDF-Extract / Expand`,`transcript hash`,`one key per direction`,`KeyUpdate`],
+   say:`TLS 1.3 derives handshake and traffic keys from the ECDHE secret with HKDF, bound to the transcript hash, with separate keys per direction.`},
+  {id:"tlswire",title:"TLS on the wire",protos:["https","ftps"],kind:"bytes",
+   sum:`What a TLS 1.3 record and a ClientHello actually contain.`,
+   layouts:[{lbl:"TLS 1.3 record (TLSCiphertext)",f:[
+    ["content type = 23",1,"clear","Always 23 (application data) on the outside, even for handshake messages after ServerHello. The real type is hidden inside."],
+    ["version 0x0303",2,"clear","Frozen at TLS 1.2's number so old middleboxes don't choke. The real version was agreed in the supported_versions extension."],
+    ["length",2,"clear","Length of the encrypted part, at most 16 KB plus 256 bytes."],
+    ["encrypted content","n","enc","The HTTP/2 frames, encrypted with AES-128-GCM or ChaCha20-Poly1305."],
+    ["real content type",1,"enc","Handshake, alert or application data: hidden inside the encryption."],
+    ["padding","0+ B","enc","Optional zeros that hide the true length."],
+    ["auth tag",16,"tag","AEAD tag over the header and ciphertext."]]},
+    {lbl:"ClientHello (always sent in clear)",f:[
+    ["type = 1",1,"clear","Handshake message type: ClientHello."],
+    ["random",32,"clear","32 random bytes, mixed into the key schedule."],
+    ["cipher suites","list","clear","For example TLS_AES_128_GCM_SHA256 and TLS_CHACHA20_POLY1305_SHA256."],
+    ["server_name (SNI)","extension","clear","www.example.com, visible to anyone on the path. Encrypted Client Hello (ECH) hides the real name inside an encrypted inner ClientHello."],
+    ["key_share","extension","clear","The client's X25519 public value. Browsers now add a post-quantum ML-KEM share as well (X25519MLKEM768)."],
+    ["ALPN","extension","clear","h2, http/1.1: which application protocol to speak afterwards."]]}],
+   text:[`After ServerHello, every record looks like application data from outside: type 23, version 0x0303 and a length. The real type is the last byte inside the encryption, so even handshake messages and alerts are disguised.`,
+    `The ClientHello is still in clear. That's where the server name and the key share sit, and why Encrypted Client Hello exists: the real ClientHello travels encrypted to a key the site publishes in its DNS HTTPS record.`,
+    `Browsers now send a hybrid key share (X25519 plus ML-KEM-768), so traffic recorded today stays safe against future quantum computers.`],
+   facts:[`record type 23`,`hidden inner type`,`SNI / ECH`,`X25519MLKEM768`],
+   say:`TLS 1.3 records all look like application data from outside; the ClientHello, with SNI and key share, is the main thing left in clear.`},
+  {id:"fwd",title:"Inside a port forward",protos:["sshtun"],kind:"seq",
+   sum:`What the SSH client and server do for each forwarded connection, and why TCP over TCP has limits.`,
+   actors:[["app","DB tool","psql"],["sc","ssh client","laptop"],["sd","sshd","bastion"],["db","Postgres","db.internal"]],
+   rows:[["sc","=","bind 127.0.0.1:5432 · listen()"],["app","sc","TCP connect (loopback)"],["sc","=","accept() → new local socket"],["sc","sd","CHANNEL_OPEN direct-tcpip · window 2 MB"],["sd","=","PermitOpen check · connect()"],["sd","db","TCP SYN → 5432"],["sd","sc","CHANNEL_OPEN_CONFIRMATION"],["app","sc","query bytes"],["sc","sd","CHANNEL_DATA (within window)"],["sd","sc","WINDOW_ADJUST +n bytes"]],
+   text:[`The ssh client opens a listening socket on 127.0.0.1:5432. Each accepted connection becomes a direct-tcpip channel (RFC 4254) naming the target host and port. sshd checks AllowTcpForwarding and PermitOpen, then makes an ordinary outbound connection.`,
+    `Every channel has a window: the sender may only send that many bytes until the receiver grants more with WINDOW_ADJUST. That stops one busy forward from flooding the whole connection.`,
+    `All channels share one TCP connection. A single lost packet stalls every forward until it's retransmitted, and the inner TCP's timers react to delays caused by the outer one. Fine for a database session, poor as a general-purpose VPN.`],
+   facts:[`direct-tcpip channel`,`AllowTcpForwarding · PermitOpen`,`WINDOW_ADJUST`,`TCP over TCP`],
+   say:`Each forwarded connection is a flow-controlled SSH channel multiplexed over one TCP connection, so loss on that connection stalls all of them.`},
+  {id:"trust",title:"Two trust models",protos:["https","sshtun"],kind:"graph",g:"trust",
+   sum:`Certificates chain up to authorities your browser trusts; SSH keys are pinned the first time you connect.`,
+   m:[["leaf","browser","presented in the handshake"],["leaf","inter","valid signature?"],["inter","root","chains to a trusted root?"],["hostkey","client","presented in the key exchange"],["client","kh","same fingerprint as last time?"],["hostkey","sshca","or: certificate from your own CA"]],
+   text:[`HTTPS: the browser builds a chain from the server's certificate through an intermediate to one of roughly 150 root CAs in its store. Any of them could issue a certificate for any name, so Certificate Transparency logs, CAA DNS records and ever-shorter certificate lifetimes (falling to 47 days by 2029) keep them in check.`,
+    `SSH: no authorities by default. The first time you connect you accept the host key's fingerprint, and known_hosts remembers it. A different key later triggers the "REMOTE HOST IDENTIFICATION HAS CHANGED" warning.`,
+    `At scale, SSH certificates add a CA you run yourself. Hosts present certificates signed by it (@cert-authority in known_hosts), and users log in with short-lived certificates instead of copied public keys.`],
+   facts:[`root store`,`Certificate Transparency`,`trust on first use`,`SSH certificates`],
+   say:`HTTPS trusts a global set of CAs checked by Certificate Transparency; SSH pins keys on first use, or uses a CA you operate.`}
+ ],
+ net:[
+  {id:"kvpn",title:"Kernel VPNs: WireGuard and IPsec",protos:["wireguard","ipsec"],kind:"graph",g:"vpnhost",
+   sum:`How a packet enters a tunnel without ever leaving the kernel.`,
+   m:[["app","sock","send() to 10.0.0.20"],["sock","route","lookup: 10.0.0.0/8 → wg0"],["route","tun","into wg0"],["tun","xfrm","encrypt in the kernel"],["xfrm","drv","outer UDP packet"],["drv","nic","out over the radio"],["ike","xfrm","IPsec: IKE daemon installs keys"]],
+   text:[`An app simply sends to 10.0.0.20. The routing table says 10.0.0.0/8 goes to wg0, so the kernel hands the packet to the WireGuard module (in Linux since 5.6), which encrypts it and sends the result as an ordinary UDP packet out of the Wi-Fi interface.`,
+    `IPsec on Linux uses the kernel's xfrm framework. Policies (ip xfrm policy) select which packets to protect; states (ip xfrm state) hold the keys. A user-space IKE daemon such as strongSwan's charon negotiates keys and installs them, while the per-packet work stays in the kernel or even in network-card hardware.`,
+    `A full tunnel has to avoid loops: the encrypted packets to the server must not be routed back into the tunnel. wg-quick and Tailscale use policy routing (fwmark) for this; other setups add a specific route for the server's address.`],
+   facts:[`routing table`,`wg0 interface`,`xfrm policy + state`,`fwmark policy routing`],
+   say:`Kernel VPNs encrypt inside the network stack: a route sends packets to wg0 or an xfrm policy, and the kernel emits the outer UDP or ESP packet.`},
+  {id:"uvpn",title:"User-space VPNs: OpenVPN and Tailscale",protos:["openvpn","tailscale"],kind:"graph",g:"vpnhost",
+   sum:`When encryption runs in a normal process, every packet takes a detour through user space.`,
+   m:[["app","sock","send() to 10.0.0.20"],["sock","route","lookup: 10.0.0.0/8 → tun0"],["route","tun","into tun0"],["tun","daemon","read() from /dev/net/tun"],["daemon","sock","encrypt · sendto() over UDP"],["sock","route","lookup: server IP → Wi-Fi"],["route","drv","outer UDP packet"],["drv","nic","out over the radio"]],
+   text:[`The kernel delivers packets routed to tun0 to whichever process holds /dev/net/tun open. OpenVPN reads each packet, encrypts it and sends it through an ordinary UDP socket, so every packet crosses between kernel and user space twice.`,
+    `Those extra copies and context switches are why classic OpenVPN is slower. OpenVPN 2.6 added Data Channel Offload (DCO), a kernel module that moves the per-packet work back into the kernel.`,
+    `Tailscale's tailscaled runs WireGuard in user space (wireguard-go) on every platform. Batching (UDP GSO/GRO and TUN offloads) lets it reach multi-gigabit speeds anyway, while NAT traversal and DERP live in the same process.`],
+   facts:[`/dev/net/tun`,`two kernel crossings per packet`,`OpenVPN DCO`,`wireguard-go`],
+   say:`User-space VPNs read packets from a TUN device, encrypt them in a process and send them via a UDP socket, at the cost of extra kernel crossings.`},
+  {id:"esp",title:"ESP on the wire",protos:["ipsec"],kind:"bytes",
+   sum:`The IPsec packet: just enough in clear to find the keys and block replays.`,
+   layouts:[{lbl:"ESP packet, tunnel mode, AES-GCM (RFC 4303)",f:[
+    ["SPI",4,"clear","Security Parameters Index: tells the receiver which security association (keys, algorithms) to use."],
+    ["sequence number",4,"clear","Goes up by one per packet. The receiver keeps a sliding window and drops anything old or repeated, before decrypting."],
+    ["IV",8,"clear","Per-packet nonce for AES-GCM."],
+    ["inner IP packet","n","enc","The original packet with its real source and destination addresses."],
+    ["padding","0–255 B","enc","Aligns the length, and can hide the real size."],
+    ["pad length",1,"enc","How much padding came before."],
+    ["next header",1,"enc","What's inside: 4 = an IPv4 packet (tunnel mode), 6 = a TCP segment (transport mode)."],
+    ["ICV",16,"tag","Integrity check value: the AES-GCM tag over SPI, sequence number and ciphertext."]]},
+    {lbl:"Behind NAT: wrapped in UDP (RFC 3948)",f:[
+    ["outer IP",20,"clear","Laptop's public address → gateway."],
+    ["UDP 4500 → 4500",8,"clear","Gives NAT routers a port number to track, which raw ESP doesn't have."],
+    ["ESP packet","n","mix","The whole packet above: SPI and sequence visible, the rest encrypted."]]}],
+   text:[`The receiver uses the SPI to find the security association: keys, algorithms and replay window. The sequence number must be new and inside the window, or the packet is dropped before any decryption work.`,
+    `In tunnel mode the encrypted part is a complete IP packet. In transport mode it's just the TCP or UDP segment, and the original IP header stays outside. The next header field, inside the encryption, says which.`,
+    `Behind NAT, ESP has no ports for the router to track, so IKEv2 detects NAT and both sides wrap ESP in UDP port 4500.`],
+   facts:[`SPI`,`anti-replay window`,`tunnel vs transport mode`,`NAT-T UDP 4500`],
+   say:`ESP leaves the SPI and sequence number in clear to select keys and block replays; the inner packet and trailer are encrypted and covered by the ICV.`},
+  {id:"wgmsg",title:"WireGuard messages",protos:["wireguard","tailscale"],kind:"bytes",
+   sum:`A 148-byte handshake and a tiny data header: WireGuard on the wire.`,
+   layouts:[{lbl:"Handshake initiation (type 1, 148 bytes)",f:[
+    ["type = 1",1,"clear","Handshake initiation."],
+    ["reserved",3,"clear","Zeros."],
+    ["sender index",4,"clear","A random ID the initiator picks for this session. Replies use it to find the session without revealing identities."],
+    ["ephemeral key",32,"clear","A fresh Curve25519 public key, used for this handshake only."],
+    ["encrypted static key",48,"enc","The initiator's long-term public key, encrypted (32 bytes + 16-byte tag). This hides who is connecting."],
+    ["encrypted timestamp",28,"enc","A TAI64N timestamp (12 bytes + tag). The responder rejects anything not newer than the last one it saw: replay protection."],
+    ["mac1",16,"tag","Keyed with the responder's public key. A packet from anyone who doesn't know that key gets no reply at all."],
+    ["mac2",16,"tag","Only used under load: proves the sender received a cookie, which stops denial-of-service floods."]]},
+    {lbl:"Transport data (type 4)",f:[
+    ["type = 4",1,"clear","Transport data."],
+    ["reserved",3,"clear","Zeros."],
+    ["receiver index",4,"clear","The other side's session ID."],
+    ["counter",8,"clear","64-bit nonce. The receiver keeps a window to reject replays."],
+    ["encrypted inner packet","n","enc","ChaCha20-Poly1305 over the inner IP packet, padded to a multiple of 16 bytes."],
+    ["tag",16,"tag","Poly1305 authentication tag."]]}],
+   text:[`The handshake is Noise_IKpsk2: the initiator already knows the responder's static key (the "K") and sends its own, encrypted (the "I"). Four Diffie-Hellman operations mix ephemeral and static keys, so both identities are proven and fresh keys are created in one round trip.`,
+    `mac1 is keyed with the responder's public key: a packet from anyone who doesn't know that key is dropped without any answer. Under load the responder asks for a cookie and requires mac2 as well.`,
+    `Data packets carry only a receiver index and a counter in clear. Sessions are replaced every 2 minutes, and after 3 minutes without a new handshake the keys are wiped.`],
+   facts:[`Noise_IKpsk2`,`148-byte initiation`,`silent to strangers`,`rekey every 2 min`],
+   say:`WireGuard's Noise IK handshake hides the initiator's identity and answers only peers that know the responder's key; data packets reveal just an index and counter.`},
+  {id:"nat",title:"Tailscale NAT traversal",protos:["tailscale"],kind:"seq",
+   sum:`How two devices behind NAT find a direct path to each other.`,
+   actors:[["a","Laptop","home NAT"],["st","DERP / STUN","public server"],["co","Coordination","login server"],["nb","Phone's NAT","carrier NAT"],["b","Phone","100.101.1.7"]],
+   rows:[["a","st","what's my public address?"],["st","a","203.0.113.7:41641"],["a","co","my endpoints (LAN + public)"],["co","b","laptop's endpoints + key"],["a","nb","disco ping → phone's endpoint"],["nb","=","dropped: no mapping yet"],["b","a","disco ping → 203.0.113.7:41641"],["a","=","accepted: matches A's earlier ping"],["a","b","disco pong: direct path works"],["a","b","WireGuard traffic, direct"]],
+   text:[`Each device asks DERP servers, which also answer STUN-style queries, which public address and port its NAT gave it. It reports all its candidate endpoints to the coordination server, which passes them on to its peers.`,
+    `Both sides then send "disco" pings to each other's endpoints at about the same time. Each outgoing ping creates a mapping in the sender's own NAT, so the other side's ping is let in as if it were a reply. As soon as a pong comes back, WireGuard traffic moves to that direct path.`,
+    `Until then, and whenever both NATs are the hard, port-changing kind, traffic goes through a DERP relay. Tailscale also asks routers for a port mapping directly with UPnP, NAT-PMP or PCP.`],
+   facts:[`STUN`,`disco pings`,`hole punching`,`DERP fallback`],
+   say:`Tailscale learns each device's public endpoint, shares it through the coordination server, and has both sides ping at once so their NATs open a direct path, falling back to DERP.`}
+ ]
+};
+
+/* Byte-layout renderer: fields sized roughly by length, auto-highlighted one by one (click to jump). */
+function bytesView(host,layouts){
+  const ST={clear:"sent in clear",enc:"encrypted",tag:"integrity tag (not secret)",mix:"contains encrypted data"};
+  host.insertAdjacentHTML("beforeend",`<div class="blegend"><span><i class="bf clear"></i>sent in clear</span><span><i class="bf enc"></i>encrypted</span><span><i class="bf tag"></i>integrity tag</span><span><i class="bf mix"></i>contains encrypted data</span></div>`);
+  const fields=[];let idx=0,t=null;
+  const show=()=>{fields.forEach((x,i)=>x.el.classList.toggle("on",i===idx));const f=fields[idx].f;
+    det.innerHTML=`<b>${esc(f[0])}</b> <span class="bsz">${typeof f[1]==="number"?f[1]+" bytes":esc(f[1])} · ${ST[f[2]]}</span><p>${esc(f[3]||"")}</p>`;};
+  layouts.forEach(L=>{
+    host.insertAdjacentHTML("beforeend",`<div class="barlbl">${esc(L.lbl)}</div>`);
+    const row=document.createElement("div");row.className="brow";host.appendChild(row);
+    L.f.forEach(f=>{const el=document.createElement("button");el.type="button";el.className="bf "+f[2];
+      el.style.flexGrow=typeof f[1]==="number"?Math.max(1,Math.log2(f[1])+1).toFixed(2):(f[1]==="n"?7:3);
+      el.innerHTML=`<b>${esc(f[0])}</b><small>${typeof f[1]==="number"?f[1]+" B":(f[1]==="n"?"variable":esc(f[1]))}</small>`;
+      const i=fields.length;el.addEventListener("click",()=>{idx=i;show();});row.appendChild(el);fields.push({el,f});});
+  });
+  const det=document.createElement("div");det.className="bdetail";det.setAttribute("aria-live","polite");host.appendChild(det);
+  show();
+  const tick=()=>{if(!ANIM.paused){idx=(idx+1)%fields.length;show();}t=setTimeout(tick,3400);};
+  if(!reduced)t=setTimeout(tick,3400);
+  return {stop(){clearTimeout(t);}};
+}
+
+const DeepView={
+  label:"Deep internals",short:"Bytes, keys and kernels",groups:true,
+  desc:"The next zoom level: exact packet layouts, how keys are derived, what happens inside servers and operating systems, and how NAT is defeated. Click any field in a byte layout to read about it.",
+  steps(){return DEEPT[state.group].map(t=>t.title);},
+  render(host){
+    const t=DEEPT[state.group][state.i];host.style.setProperty("--c",ecol(P[t.protos[0]]));
+    head(host,esc(t.title),esc(t.sum));
+    if(t.kind==="bytes")this.h=bytesView(host,t.layouts);
+    else if(t.kind==="graph")this.h=drawGraph(host,DGRAPH[t.g],t.m,{notes:t.notes||[],aria:t.title});
+    else{const d=seqDiagram(t.actors,t.rows,t.title);host.appendChild(d.box);d.flow.start();this.h=d.flow;}
+  },
+  notes(n){const t=DEEPT[state.group][state.i];n.style.setProperty("--c",ecol(P[t.protos[0]]));
+    return `<p class="kicker">Deep internals · ${esc(GROUPS[state.group].name)} · ${state.i+1} of ${DEEPT[state.group].length}</p><h2>${esc(t.title)}</h2><p class="sum">${esc(t.sum)}</p>
+      <div class="facts">${t.facts.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div>
+      ${t.text.map(p=>`<p>${esc(p)}</p>`).join("")}
+      <div class="say"><h3>In one sentence</h3><p>${esc(t.say)}</p></div>
+      <h3>Applies to</h3><div class="facts">${t.protos.map(id=>`<span class="chip" style="border-color:${ecol(P[id])}">${esc(P[id].name)}</span>`).join("")}</div>`;},
+  stop(){this.h&&this.h.stop();}
+};
+
+const VIEWS={overview:HighView,side:SideView,layers:LayerView,topology:TopoView,compare:CompareView,deep:DeepView};
+const state={view:"overview",group:"files",i:0,hl:null,dtPath:["start"],playing:false,timer:null};
+let active=null;
+
+function buildTabs(){
+  const t=document.getElementById("tabs");
+  const tab=k=>`<button class="tab" role="tab" type="button" id="tab-${k}" data-view="${k}" aria-selected="false"><b>${VIEWS[k].label}</b><span>${VIEWS[k].short}</span></button>`;
+  t.innerHTML=tab("overview")+`<div class="tab-group" role="group" aria-label="Interview depth"><span class="tg-label">Interview</span>${["side","layers","topology","compare"].map(tab).join("")}</div>`
+    +tab("deep");
+  t.addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view,true);});
+}
+function steps(){return VIEWS[state.view].steps();}
+function renderRail(){
+  const v=VIEWS[state.view],gEl=document.getElementById("groups"),sEl=document.getElementById("steps");
+  gEl.hidden=!v.groups;
+  gEl.innerHTML=GROUP_IDS.map(g=>`<button type="button" class="gbtn${g===state.group?" on":""}" data-group="${g}" aria-pressed="${g===state.group}">${esc(GROUPS[g].name)}<small>${esc(GROUPS[g].short)}</small></button>`).join("");
+  const st=steps();
+  sEl.innerHTML=st?st.map((s,i)=>`<button type="button" class="sbtn${i===state.i?" on":""}" data-step="${i}"><i>${i+1}</i>${esc(s)}</button>`).join(""):"";
+  const c=document.getElementById("counter");
+  if(st) c.textContent=`${state.i+1} / ${st.length}`+(v.groups?` · group ${GROUP_IDS.indexOf(state.group)+1}/3`:"");
+  else c.textContent=`group ${GROUP_IDS.indexOf(state.group)+1} / 3`;
+}
+function render(){
+  if(active)active.stop();
+  const host=document.getElementById("viz");host.innerHTML="";host.style.removeProperty("--c");
+  active=VIEWS[state.view];active.render(host);
+  const n=document.getElementById("notes");n.innerHTML=active.notes(n);n.scrollTop=0;
+  renderRail();
+  store.set("sc-group",state.group);
+}
+function go(i){const st=steps();state.i=st?Math.max(0,Math.min(st.length-1,i)):0;render();if(state.playing)schedule();}
+function setGroup(g,i=0){state.group=g;state.i=i;render();if(state.playing)schedule();}
+/* Next/previous: through the view's steps, then on to the next group; wraps around for a looping tour. */
+function stepBy(d){
+  state.hl=null;
+  const v=VIEWS[state.view],st=steps(),gi=GROUP_IDS.indexOf(state.group);
+  if(st&&state.i+d>=0&&state.i+d<st.length){go(state.i+d);return;}
+  if(!v.groups){go(st?(state.i+d+st.length)%st.length:0);return;}
+  const ng=GROUP_IDS[(gi+d+GROUP_IDS.length)%GROUP_IDS.length];
+  state.group=ng;const ns=steps();setGroup(ng,d>0||!ns?0:ns.length-1);
+}
+function setView(v,push){
+  if(!VIEWS[v])v="overview";
+  if(v!==state.view)state.i=0;
+  state.view=v;
+  document.querySelectorAll(".tab[data-view]").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)));
+  document.getElementById("viewdesc").textContent=VIEWS[v].desc;
+  if(push&&location.hash!=="#"+v){try{history.replaceState(null,"","#"+v);}catch(e){location.hash=v;}}
+  render();if(state.playing)schedule();
+}
+function schedule(){
+  clearTimeout(state.timer);
+  const d=state.view==="side"?16000:12000,b=document.getElementById("auto");
+  b.style.setProperty("--adv",d+"ms");b.classList.remove("on");void b.offsetWidth;b.classList.add("on");
+  state.timer=setTimeout(()=>stepBy(1),d);
+}
+function togglePlay(on){state.playing=on??!state.playing;const b=document.getElementById("auto");b.classList.toggle("on",state.playing);b.setAttribute("aria-pressed",String(state.playing));if(state.playing)schedule();else clearTimeout(state.timer);}
+function toggleAnim(p){
+  ANIM.paused=p??!ANIM.paused;document.documentElement.classList.toggle("anim-paused",ANIM.paused);
+  const b=document.getElementById("anim");b.textContent=ANIM.paused?"Play animation":"Pause animation";b.setAttribute("aria-pressed",String(ANIM.paused));
+  b.title=ANIM.paused?"Resume the animations (space)":"Pause the animations (space)";store.set("sc-paused",ANIM.paused?"1":"0");
+}
+function compareProto(id){const p=P[id];state.group=p.group;setView("side",true);}
+
+buildTabs();
+document.getElementById("groups").addEventListener("click",e=>{const b=e.target.closest("[data-group]");if(b)setGroup(b.dataset.group);});
+document.getElementById("steps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(b){state.hl=null;go(+b.dataset.step);}});
+document.getElementById("prev").onclick=()=>stepBy(-1);
+document.getElementById("next").onclick=()=>stepBy(1);
+document.getElementById("anim").onclick=()=>toggleAnim();
+document.getElementById("auto").onclick=()=>togglePlay();
+document.addEventListener("click",e=>{
+  const pr=e.target.closest("[data-proto]");if(pr){state.hl=pr.dataset.proto;state.i=SCOPES.findIndex(s=>s.protos.includes(state.hl));render();return;}
+  const dt=e.target.closest("[data-dt]");if(dt){state.dtPath.push(dt.dataset.dt);render();return;}
+  const rs=e.target.closest("[data-dt-reset]");if(rs){state.dtPath=["start"];render();return;}
+  const cp=e.target.closest("[data-compare]");if(cp){compareProto(cp.dataset.compare);}
+});
+document.addEventListener("keydown",e=>{
+  if(e.target.closest("input,textarea,select,summary"))return;
+  if(e.key==="ArrowRight"){e.preventDefault();stepBy(1);}
+  else if(e.key==="ArrowLeft"){e.preventDefault();stepBy(-1);}
+  else if(e.key===" "&&!e.target.closest("button,[role=button]")){e.preventDefault();toggleAnim();}
+});
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(VIEWS[v]&&v!==state.view)setView(v,false);});
+const sg=store.get("sc-group");if(GROUPS[sg])state.group=sg;
+setView(VIEWS[location.hash.slice(1)]?location.hash.slice(1):"overview",false);
+toggleAnim(store.get("sc-paused")==="1");
+</script>
+<script>
+/* Back link to the collection: only on GitHub Pages or a local copy, not on the single published page. */
+(function(){var h=location.hostname;if(location.protocol==="file:"||/\.github\.io$/.test(h)||h==="localhost"){var a=document.querySelector(".home-link");if(a)a.hidden=false;}})();
+</script>

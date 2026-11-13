@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>From Enter to Pixels</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one shared step cursor drives four interchangeable views. Header, view tabs, a sticky stage rail, then a two-pane workspace (diagram left, step notes right) that stacks on narrow screens. */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --surface-2:#E3E9EE; --ink:#122130; --muted:#55687B; --line:#C6D1DB; --accent:#0B6A8E;
+  --s1:#7445D6; --s2:#08826F; --s3:#BA6608; --s4:#2155D0; --s5:#C02467; --s6:#4A8510;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Helvetica Neue",Arial,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4;
+  --s1:#A88AF2; --s2:#3BC6AE; --s3:#F0A447; --s4:#7199FF; --s5:#F06BA7; --s6:#8DCB4F; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4;
+  --s1:#A88AF2; --s2:#3BC6AE; --s3:#F0A447; --s4:#7199FF; --s5:#F06BA7; --s6:#8DCB4F; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+code,.mono{font-family:var(--font-mono);font-size:.92em}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;gap:20px 40px;align-items:flex-end;justify-content:space-between;padding-block:28px 18px}
+.brand{min-width:0;max-width:760px}
+.eyebrow{margin:0 0 6px;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(30px,4.4vw,52px);line-height:1.02;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 .cursor{display:inline-block;width:.09em;height:.8em;background:var(--accent);margin-left:.08em;vertical-align:-.05em;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.lede{margin:12px 0 0;color:var(--muted);max-width:64ch}
+.lede code{color:var(--ink);background:var(--surface-2);padding:1px 6px;border-radius:5px}
+.depth{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.depth .lbl{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.seg{border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:999px;cursor:pointer;font-size:13.5px}
+.seg.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg[disabled]{cursor:not-allowed;color:var(--muted);border-style:dashed}
+.seg em{font-style:normal;font-family:var(--font-mono);font-size:11px;margin-left:4px;opacity:.8}
+
+/* view tabs */
+.views{display:flex;gap:8px;flex-wrap:wrap;padding-block:4px 8px}
+.tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:9px 14px;cursor:pointer;text-align:left;min-width:150px;flex:1 1 150px;max-width:260px}
+.tab b{font-family:var(--font-display);font-weight:700;font-size:16px}
+.tab span{font-size:12.5px;color:var(--muted)}
+.tab[aria-selected="true"]{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink)}
+.views{align-items:flex-start;padding-block:14px 8px}
+.views > .tab{margin-top:17px}
+.tab-group{position:relative;display:flex;flex-wrap:wrap;gap:8px;flex:4 1 560px;min-width:0;border:1.5px solid var(--line);border-radius:14px;padding:15.5px 8px 8px}
+.tab-group .tab{flex:1 1 130px}
+.tg-label{position:absolute;top:-9px;left:14px;padding:0 6px;background:var(--bg);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tab-group:has(.tab[aria-selected="true"]){border-color:var(--ink)}
+.tab-group:has(.tab[aria-selected="true"]) .tg-label{color:var(--ink);font-weight:600}
+.viewdesc{color:var(--muted);font-size:14px;margin-block:2px 12px}
+
+/* stage rail */
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-block:1px solid var(--line)}
+.rail-in{display:flex;gap:14px;align-items:center;padding-block:10px;flex-wrap:wrap}
+.stages{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;flex:1 1 640px;min-width:0}
+.stage{--c:var(--s1);border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 9px 7px;cursor:pointer;text-align:left;min-width:0;display:flex;flex-direction:column;gap:5px}
+.stage .nm{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage .nm i{font-style:normal;font-family:var(--font-mono);color:var(--c);margin-right:5px}
+.stage.cur{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.dots{display:flex;gap:3px}
+.dot{flex:1;height:5px;border-radius:3px;background:var(--surface-2);border:0;padding:0;cursor:pointer}
+.dot.done{background:color-mix(in srgb,var(--c) 45%,var(--surface-2))}
+.dot.cur{background:var(--c)}
+.ctrl{display:flex;align-items:center;gap:6px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;height:36px;min-width:36px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#anim{min-width:150px}
+#anim[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#auto{position:relative;overflow:hidden}
+#auto.on{border-color:var(--ink);font-weight:600}
+.adv-bar{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--accent)}
+#auto.on .adv-bar{animation:adv var(--adv,9s) linear forwards}
+@keyframes adv{to{width:100%}}
+.anim-paused *:not(.adv-bar){animation-play-state:paused!important}
+.counter{font-family:var(--font-mono);font-size:12.5px;color:var(--muted);min-width:68px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* workspace */
+.work{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding-block:18px 40px;align-items:start}
+@media (max-width:1100px){.work{grid-template-columns:minmax(0,1fr)}}
+.viz{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.viz-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+.viz-head h2{font-family:var(--font-display);font-size:19px;margin:0;font-weight:700}
+.viz-head .hint{font-size:13px;color:var(--muted)}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.scroll-x > svg{display:block;min-width:720px;width:100%;height:auto}
+
+/* svg diagram styling */
+.frame{fill:none;stroke:var(--line);stroke-dasharray:4 4}
+.frame-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.link{stroke:var(--line);stroke-width:2;fill:none}
+.link.hot{stroke:var(--c);stroke-width:3}
+.link-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px}
+.node rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.band-lbl{fill:var(--ink);font-family:var(--font-mono);font-size:11.5px;font-weight:600;letter-spacing:.08em}
+.band-sub{fill:var(--muted);font-family:var(--font-mono);font-size:10px}
+.deeper .btn{height:30px;margin:0 4px;font-size:13px}
+.more{margin-top:14px;color:var(--muted);font-size:14px}
+.more .btn{height:32px;margin-top:6px;font-size:13.5px}
+.hl-summary{font-size:17px;line-height:1.5;margin:0 0 6px;max-width:68ch}
+.station{cursor:pointer}
+.station:focus-visible{outline:none}
+.station:focus-visible .st-bg{stroke:var(--accent);stroke-width:4}
+.st-bg{fill:var(--surface);stroke:var(--line);stroke-width:2}
+.station.past .st-bg{fill:color-mix(in srgb,var(--c) 10%,var(--surface));stroke:var(--c)}
+.station.cur .st-bg{fill:color-mix(in srgb,var(--c) 20%,var(--surface));stroke:var(--c);stroke-width:3.5}
+.station.future{opacity:.5}
+.station:hover{opacity:1}
+.ico{fill:none;stroke:var(--c);stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+.ico .fillc{fill:var(--c);stroke:none}
+.st-n{fill:var(--c);font-family:var(--font-mono);font-size:12px;font-weight:600}
+.st-l{fill:var(--ink);font-family:var(--font-display);font-size:16px;font-weight:700}
+.st-s{fill:var(--muted);font-family:var(--font-mono);font-size:11px}
+.hcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:14px}
+.hcard{--c:var(--s1);display:grid;grid-template-columns:28px minmax(0,1fr);gap:2px 8px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;cursor:pointer;line-height:1.4}
+.hcard:hover{border-color:var(--c)}
+.hcard.cur{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c);background:color-mix(in srgb,var(--c) 8%,var(--surface))}
+.hcard .hn{grid-row:span 2;font-family:var(--font-mono);font-weight:600;color:var(--c);font-size:13px;padding-top:2px}
+.hcard b{font-family:var(--font-display);font-size:15.5px}
+.hcard span:last-child{color:var(--muted);font-size:13.5px}
+.node .t{fill:var(--ink);font-weight:600;font-size:13.5px;font-family:var(--font-body)}
+.node .s{fill:var(--muted);font-size:10.5px;font-family:var(--font-mono)}
+.node.dim{opacity:.42}
+.node.on rect{stroke:var(--c);stroke-width:2.5;fill:color-mix(in srgb,var(--c) 10%,var(--surface))}
+.trail{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;opacity:.22}
+.trail.act{opacity:1}
+.pkt{fill:var(--c);stroke:var(--surface);stroke-width:2}
+.pill rect{fill:var(--ink)}
+.pill text{fill:var(--bg);font-family:var(--font-mono);font-size:11px}
+
+.log{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px}
+.log li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:baseline;padding:5px 8px;border-radius:6px;font-size:13.5px}
+.log li .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.log li .who{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.log li.act{background:color-mix(in srgb,var(--c) 12%,transparent)}
+.log li.note{color:var(--muted);font-style:italic}
+
+/* layer stack */
+.lstack{display:grid;grid-template-columns:150px minmax(200px,1fr) 150px minmax(200px,1fr);gap:6px;min-width:820px}
+.lstack.nomid{grid-template-columns:150px minmax(200px,1fr) 0 minmax(200px,1fr)}
+.lh{font-family:var(--font-display);font-weight:700;font-size:15px;padding:4px 2px}
+.lh small{display:block;font-family:var(--font-body);font-weight:400;font-size:12px;color:var(--muted)}
+.lname{font-size:12.5px;font-weight:600;padding:8px 4px;display:flex;flex-direction:column;justify-content:center}
+.lname small{font-family:var(--font-mono);font-weight:400;font-size:10.5px;color:var(--muted)}
+.cell{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:var(--font-mono);font-size:11.5px;line-height:1.4;background:var(--surface);min-height:44px;transition:background .25s,border-color .25s;overflow-wrap:anywhere}
+.cell .lives{display:block;font-family:var(--font-body);font-size:11px;color:var(--muted);margin-top:2px}
+.cell.unused{color:var(--muted);border-style:dashed;background:transparent;opacity:.6}
+.cell.mid{background:var(--surface-2)}
+.cell.mid.skip{opacity:.35;border-style:dashed;background:transparent}
+.cell.lit{border-color:var(--c);background:color-mix(in srgb,var(--c) 16%,var(--surface));box-shadow:0 0 0 1px var(--c)}
+.wirebar{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:2px 0}
+.wirebar .w{flex:1;height:3px;background:var(--line);border-radius:2px;position:relative;overflow:hidden}
+.wirebar .w.lit::after{content:"";position:absolute;inset:0;background:var(--c);animation:wire .9s linear}
+@keyframes wire{from{transform:translateX(-100%)}to{transform:none}}
+.env{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.env h3{margin:0 0 8px;font-size:13px;font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.packet{display:flex;flex-wrap:wrap;gap:3px;align-items:stretch;min-height:46px}
+.blk{border-radius:6px;padding:6px 9px;font-family:var(--font-mono);font-size:11.5px;display:flex;flex-direction:column;justify-content:center;border:1px solid transparent;animation:pop .3s ease-out}
+.blk small{font-size:10px;opacity:.75}
+.blk.l2{background:color-mix(in srgb,var(--s3) 22%,var(--surface));border-color:var(--s3)}
+.blk.l3{background:color-mix(in srgb,var(--s2) 22%,var(--surface));border-color:var(--s2)}
+.blk.l4{background:color-mix(in srgb,var(--s4) 22%,var(--surface));border-color:var(--s4)}
+.blk.tls{background:color-mix(in srgb,var(--s1) 22%,var(--surface));border-color:var(--s1)}
+.blk.app{background:color-mix(in srgb,var(--s5) 18%,var(--surface));border-color:var(--s5);flex:1 1 160px}
+.blk.app.enc{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--s1) 22%,var(--surface)) 0 6px,var(--surface) 6px 12px);border-color:var(--s1)}
+.blk.none{border:1px dashed var(--line);color:var(--muted);flex:1 1 160px}
+.bits{margin-top:6px;font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.12em;white-space:nowrap;overflow:hidden}
+.phase-note{margin-top:10px;font-size:14px;min-height:2.6em}
+.phase-note b{font-family:var(--font-mono);font-size:12px;color:var(--c)}
+@keyframes pop{from{transform:scale(.92);opacity:.3}to{transform:none;opacity:1}}
+.deeper{margin-top:16px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.deeper b{color:var(--ink)}
+.local-box{border:1px dashed var(--line);border-radius:10px;padding:14px;margin-bottom:12px;font-size:14px}
+
+/* sequence */
+.seq-outer{overflow-x:auto}
+.seq-inner{min-width:1100px}
+.seq-body{max-height:560px;overflow-y:auto;border-top:1px solid var(--line)}
+.seq-body svg,.seq-head svg{display:block}
+.lane-h{fill:var(--ink);font-weight:600;font-size:12.5px;font-family:var(--font-body)}
+.lane-s{fill:var(--muted);font-size:10px;font-family:var(--font-mono)}
+.lifeline{stroke:var(--line);stroke-dasharray:3 4}
+.band{fill:transparent;cursor:pointer}
+.band:hover{fill:color-mix(in srgb,var(--ink) 4%,transparent)}
+.band.cur{fill:color-mix(in srgb,var(--c) 11%,transparent)}
+.srow.future{opacity:.38}
+.g-code{fill:var(--c);font-family:var(--font-mono);font-size:11.5px;font-weight:600}
+.g-title{fill:var(--ink);font-size:12.5px;font-weight:500}
+.g-time{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px}
+.arrow{stroke:var(--c);stroke-width:1.8}
+.arrowhead{fill:var(--c)}
+.alabel{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.snote rect{fill:color-mix(in srgb,var(--c) 14%,var(--surface));stroke:var(--c)}
+.snote text{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px}
+
+/* cheat sheet */
+.cheat{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.ccard{--c:var(--s1);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0;border-top:4px solid var(--c)}
+.ccard h3{margin:0;font-family:var(--font-display);font-size:18px}
+.ccard .q{font-size:13px;color:var(--muted);margin:4px 0 10px}
+.ccard ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.ccard li button{width:100%;text-align:left;background:none;border:0;border-radius:6px;padding:6px 8px;cursor:pointer;display:grid;grid-template-columns:34px minmax(0,1fr);gap:6px;font-size:13.5px;line-height:1.4}
+.ccard li button:hover{background:var(--surface-2)}
+.ccard li button.cur{background:color-mix(in srgb,var(--c) 14%,transparent)}
+.ccard li .c{font-family:var(--font-mono);font-size:11.5px;color:var(--c);padding-top:2px}
+.ccard li b{display:block;font-weight:600}
+.ccard li span.sm{color:var(--muted);font-size:12.5px}
+
+/* notes panel */
+.notes{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);max-height:calc(100vh - 96px);overflow:auto}
+@media (max-width:1100px){.notes{position:static;max-height:none}}
+.notes .kicker{font-family:var(--font-mono);font-size:12px;color:var(--c);letter-spacing:.05em;text-transform:uppercase;margin:0}
+.notes h2{font-family:var(--font-display);font-size:25px;line-height:1.12;margin:4px 0 8px;text-wrap:balance}
+.notes .sum{font-size:16px;margin:0 0 12px}
+.notes p{margin:0 0 10px}
+.say{border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 8%,transparent);padding:10px 12px;border-radius:0 8px 8px 0;margin:14px 0}
+.say h3,.notes h3{font-size:12px;font-family:var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:500}
+.say p{margin:0;font-size:15px}
+.facts{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 14px}
+.chip{font-family:var(--font-mono);font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--ink);background:var(--surface-2)}
+details{border-top:1px solid var(--line);padding:8px 0}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;font-weight:600;font-size:14.5px}
+details p{margin:6px 0 0;color:var(--ink);font-size:14px}
+.timing{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:12px}
+
+footer{color:var(--muted);font-size:12.5px;padding-block:0 32px}
+footer p{max-width:90ch;margin:0 0 6px}
+@media (max-width:720px){
+  .stages{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tab{max-width:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top wrap">
+  <a class="home-link" href="../" hidden style="display:inline-block;margin-bottom:10px;font-family:var(--font-mono);font-size:12.5px;color:var(--accent);text-decoration:none">&larr; All topics</a>
+  <div class="brand">
+    <p class="eyebrow">The classic interview question, taken apart</p>
+    <h1>From Enter to Pixels<span class="cursor" aria-hidden="true"></span></h1>
+    <p class="lede">You type <code>google.com</code> and press Enter. Roughly half a second later the page is on screen. Step through the 26 things that happen in between, and switch views at any point without losing your place.</p>
+  </div>
+</header>
+
+<nav class="views wrap" role="tablist" aria-label="Visualisation style" id="tabs"></nav>
+<p class="viewdesc wrap" id="viewdesc"></p>
+
+<div class="rail">
+  <div class="wrap rail-in">
+    <div class="stages" id="stages"></div>
+    <div class="ctrl">
+      <button class="btn" id="prev" type="button" aria-label="Previous step" title="Previous (←)">&#8592;</button>
+      <button class="btn" id="anim" type="button" aria-pressed="false" title="Pause the animations (space)">Pause animation</button>
+      <button class="btn" id="next" type="button" aria-label="Next step" title="Next (→)">&#8594;</button>
+      <span class="counter" id="counter"></span>
+      <button class="btn" id="auto" type="button" aria-pressed="false" title="Move to the next step automatically">Auto-advance<span class="adv-bar"></span></button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap work">
+  <section class="viz" id="viz" aria-live="polite"></section>
+  <aside class="notes" id="notes"></aside>
+</main>
+
+<footer class="wrap">
+  <p>Addresses such as 192.168.1.23, 203.0.113.7 and 198.51.100.53 come from private or documentation ranges. 142.250.74.36 stands in for whatever Google address your resolver returns. Root, .com and ns1.google.com addresses are the real published ones.</p>
+  <p>Timings are illustrative for a cold start on home broadband. Real numbers vary a lot, and a browser that already has a warm connection skips most of stages 2 to 4.</p>
+</footer>
+
+<script>
+/* ============================================================
+   DATA MODEL
+   Stages hold steps. Every view renders from the same step object,
+   so a new view (or a deeper zoom level) only needs to read these
+   fields. Future depth levels can add e.g. step.deeper = {...}.
+   ============================================================ */
+const STAGES = [
+  {id:"input",  name:"Input & navigation", color:"var(--s1)", graph:"browser", q:"How does a keypress become a navigation?"},
+  {id:"dns",    name:"DNS resolution",     color:"var(--s2)", graph:"net",     q:"How does a name become an IP address?"},
+  {id:"route",  name:"Routing packets",    color:"var(--s3)", graph:"net",     q:"How does a packet find its way to Google?"},
+  {id:"conn",   name:"Secure connection",  color:"var(--s4)", graph:"net",     q:"How do we get a reliable, encrypted channel?"},
+  {id:"http",   name:"HTTP exchange",      color:"var(--s5)", graph:"net",     q:"What is actually asked for and returned?"},
+  {id:"render", name:"Rendering",          color:"var(--s6)", graph:"browser", q:"How do bytes become pixels?"}
+];
+
+const LAPTOP = {from:"Your laptop", via:"Router, ISP, backbone"};
+
+const STEPS = [
+/* ---------- 1 INPUT ---------- */
+{stage:"input", id:"enter", t:5, title:`Enter is pressed`,
+ sum:`The keypress travels from the keyboard, through the OS, to the browser's UI thread.`,
+ body:[`The keyboard reports a key-down as a USB HID (or Bluetooth) report. The OS input driver turns it into a key event, and the window server delivers it to the focused window: the browser.`,
+  `Modern browsers are multi-process. The browser process owns the window and the address bar (the omnibox). Web pages run in sandboxed renderer processes, networking runs in a network service, and drawing goes through a GPU process.`,
+  `Interrupts, drivers and firmware below the browser are the next zoom level, planned for later.`],
+ say:`The keyboard event goes through the OS to the browser process, whose UI thread owns the address bar and starts a navigation.`,
+ probes:[[`Why are browsers multi-process?`,`Isolation and security. A crashing or compromised page can't take down or read other tabs. Site Isolation puts different sites in different sandboxed renderer processes.`],
+  [`Has anything happened before Enter?`,`Often, yes. While you type, the omnibox suggests completions and may already resolve DNS or preconnect to the likely site, so some later steps are done early.`]],
+ facts:[`USB HID`,`browser process`,`UI thread`],
+ b:[["kbd","ui","keydown: Enter"],["ui","omni","text = \"google.com\""]]},
+
+{stage:"input", id:"parse", t:2, title:`URL or search?`,
+ sum:`The omnibox decides google.com is a host name, not a search, and builds a full URL.`,
+ body:[`The text has no spaces and ends in a known top-level domain, so the omnibox treats it as a URL rather than a search query.`,
+  `It fills in what you left out: the scheme and the path. The browser keeps a built-in HSTS preload list and prefers HTTPS, so it goes straight to https:// instead of trying plain http:// first.`,
+  `Typing google.com usually earns a 301 redirect to https://www.google.com/, which costs one extra request. This walkthrough follows www.google.com from the start to keep the flow readable.`],
+ say:`The browser parses the input, recognises a domain, normalises it to https://www.google.com/ (HSTS forces HTTPS) and starts a navigation.`,
+ probes:[[`What is HSTS?`,`HTTP Strict Transport Security. Once a site sends the Strict-Transport-Security header, or ships in the browser's preload list, the browser refuses plain HTTP for it. That blocks SSL-stripping attacks.`],
+  [`What are the parts of a URL?`,`scheme (https) :// host (www.google.com) : port (443, implied by https) / path (/) ? query # fragment. The fragment never leaves the browser.`]],
+ facts:[`scheme https`,`host www.google.com`,`port 443 (implied)`,`path /`],
+ b:[["omni","hsts","is google.com HTTPS-only?"],["hsts","cache","https://www.google.com/"]]},
+
+{stage:"input", id:"cache", t:2, title:`Check caches and open connections`,
+ sum:`Before touching the network, the browser checks its caches and whether it already holds a connection to Google.`,
+ body:[`A top-level navigation checks the HTTP cache (Google's HTML is marked as not reusable, so it goes to the network), any service worker registered for the origin, and the back/forward cache.`,
+  `The network service keeps a pool of open connections per origin. If a live HTTP/2 or HTTP/3 connection to www.google.com exists, the browser reuses it and skips DNS, TCP and TLS entirely.`,
+  `This walkthrough is a cold start: no cached page, no open connection.`],
+ say:`It checks the browser cache and the connection pool. If neither helps, it needs an IP address, so DNS comes next.`,
+ probes:[[`What makes a response cacheable?`,`Headers: Cache-Control (max-age, no-store, private), Expires, and validators like ETag or Last-Modified for conditional requests that can return 304 Not Modified.`],
+  [`What is a service worker?`,`A script a site installs that sits between the page and the network. It can answer requests from its own cache, which enables offline pages.`]],
+ facts:[`HTTP cache`,`service worker`,`bfcache`,`connection pool`],
+ b:[["cache","net","miss: start network request"]]},
+
+/* ---------- 2 DNS ---------- */
+{stage:"dns", id:"dns-local", t:1, title:`Local DNS lookup`,
+ sum:`The browser needs an IP address. Its own cache, the OS cache and the hosts file are checked first.`,
+ body:[`Packets are routed to IP addresses, not names. The browser first checks its own host cache, then asks the operating system through the resolver API (getaddrinfo).`,
+  `The OS stub resolver checks its cache and the hosts file (/etc/hosts, or C:\\Windows\\System32\\drivers\\etc\\hosts). On macOS this is mDNSResponder, on Windows the DNS Client service, on many Linux systems systemd-resolved.`,
+  `Nothing is cached here, so the OS has to ask the network.`],
+ say:`First the caches: browser DNS cache, OS cache, hosts file. On a miss the OS stub resolver sends a query to the configured recursive resolver.`,
+ probes:[[`Where does the OS get its DNS server from?`,`Usually DHCP. When the laptop joined the Wi-Fi it received an IP address, subnet mask, default gateway and DNS servers. It can also be set by hand.`],
+  [`How would you debug DNS?`,`dig or nslookup to query directly, compare with a public resolver (dig @1.1.1.1 www.google.com), check the hosts file, flush caches.`]],
+ facts:[`getaddrinfo()`,`hosts file`,`stub resolver`],
+ m:[["browser","os","resolve \"www.google.com\""]],
+ local:`This happens between processes inside your laptop. Nothing goes on the wire yet.`},
+
+{stage:"dns", id:"dns-recursive", t:12, title:`Ask the recursive resolver`,
+ sum:`The OS sends a small UDP packet to port 53 on the recursive resolver, which does the hard work.`,
+ body:[`The query asks for the A record (IPv4) and usually the AAAA record (IPv6). Modern browsers may also ask for an HTTPS record, which can advertise HTTP/3 support in advance.`,
+  `The recursive resolver is typically run by your ISP, or is a public one such as 8.8.8.8 or 1.1.1.1. Your home router often forwards to it. The browser may use DNS over HTTPS (DoH) instead, which wraps the same query in encrypted HTTPS.`,
+  `If the resolver has the answer cached (very likely for Google) it replies right away. The next three steps show the full lookup it does on a miss.`],
+ say:`The stub resolver sends a recursive query over UDP port 53 to the resolver it got from DHCP. On a cache miss, that resolver walks the DNS hierarchy for us.`,
+ probes:[[`Recursive vs iterative queries?`,`The laptop sends one recursive query meaning "give me the final answer". The resolver then sends iterative queries to root, TLD and authoritative servers, each replying with either an answer or a referral.`],
+  [`Why UDP?`,`Questions and answers are small and one round trip is enough. DNS falls back to TCP for large responses (the truncated flag) and zone transfers. DoH and DoT add encryption.`]],
+ facts:[`UDP :53`,`A + AAAA`,`DoH alternative`],
+ m:[["os","resolver","A? AAAA? www.google.com"]],
+ wire:{from:"Your laptop", to:"Recursive resolver", via:"Home router + ISP", app:"DNS query id=0x3a1f · A? www.google.com", l4:"UDP · src port 52144 → dst port 53", l3:"IPv4 · 192.168.1.23 → 198.51.100.53", l2:"Wi-Fi 802.11 frame · to router MAC a4:2b:8c:10:00:01", l1:"5 GHz radio signal", nat:true}},
+
+{stage:"dns", id:"dns-root", t:15, title:`Ask a root server`,
+ sum:`The resolver asks a root server, which refers it to the servers for .com.`,
+ body:[`There are 13 root server identities (a.root-servers.net to m.root-servers.net), served by well over a thousand machines worldwide using anycast: the same IP is announced from many places, and routing delivers the query to a nearby one.`,
+  `The root doesn't know Google's address. It answers with a referral: the name servers for .com, plus their IP addresses (glue records).`,
+  `Resolvers cache this referral for days, so in practice the root is rarely asked about .com.`],
+ say:`The resolver starts at the root, which refers it to the .com TLD servers.`,
+ probes:[[`How does the resolver know the root servers?`,`A built-in root hints file lists their names and addresses. On startup it refreshes that list from a root server (priming).`],
+  [`What is anycast?`,`One IP address announced through BGP from many locations. Routers deliver packets to the topologically nearest one. Root DNS, public resolvers and CDNs all use it.`]],
+ facts:[`13 root identities`,`anycast`,`referral`],
+ m:[["resolver","root","A? www.google.com"],["root","resolver","referral: .com → a.gtld-servers.net"]],
+ wire:{from:"Recursive resolver", to:"a.root-servers.net", via:"Internet routers", app:"DNS query · A? www.google.com (iterative)", l4:"UDP · → port 53", l3:"IPv4 · 198.51.100.53 → 198.41.0.4", l2:"Ethernet frame (data center link)", l1:"Optical fibre"}},
+
+{stage:"dns", id:"dns-tld", t:15, title:`Ask the .com TLD server`,
+ sum:`A .com server refers the resolver to Google's own name servers.`,
+ body:[`The .com TLD servers, operated by Verisign, know which name servers are responsible for every .com domain, as set up through the domain's registrar.`,
+  `They reply with NS records for google.com (ns1.google.com to ns4.google.com) plus glue A records with their addresses, because those names live inside the domain being resolved.`],
+ say:`The TLD server refers the resolver to google.com's authoritative name servers.`,
+ probes:[[`What are glue records?`,`IP addresses for name servers that sit inside the zone they serve, such as ns1.google.com for google.com. Without glue, resolving them would be circular.`],
+  [`Registrar vs DNS host?`,`The registrar records who owns the domain and which name servers are authoritative; that delegation is published in the TLD zone. The DNS host runs those name servers.`]],
+ facts:[`NS records`,`glue`,`Verisign`],
+ m:[["resolver","tld","A? www.google.com"],["tld","resolver","referral: ns1.google.com 216.239.32.10"]],
+ wire:{from:"Recursive resolver", to:"a.gtld-servers.net", via:"Internet routers", app:"DNS query · A? www.google.com", l4:"UDP · → port 53", l3:"IPv4 · 198.51.100.53 → 192.5.6.30", l2:"Ethernet frame", l1:"Optical fibre"}},
+
+{stage:"dns", id:"dns-auth", t:18, title:`Ask Google's authoritative server`,
+ sum:`ns1.google.com gives the final answer: an IP address chosen to be close to you.`,
+ body:[`The authoritative server holds the actual records for google.com. It answers www.google.com with A and AAAA records and a TTL, often 300 seconds.`,
+  `Google's answers depend on where the query comes from (the resolver's location, or an EDNS Client Subnet hint). This geo-aware DNS steers you to a nearby Google edge site, the first step of load balancing.`,
+  `The example address 142.250.74.36 is illustrative. The one you get varies with location and time.`],
+ say:`The authoritative server returns an A/AAAA record with a TTL. Google's DNS is location-aware, so the IP points to a nearby edge.`,
+ probes:[[`Which record types should you know?`,`A (IPv4), AAAA (IPv6), CNAME (alias), MX (mail), NS (delegation), TXT (verification, SPF), SOA (zone info), HTTPS/SVCB (connection hints).`],
+  [`What does the TTL control?`,`How long resolvers and clients may cache the answer. Short TTLs allow fast failover and traffic steering; long TTLs mean fewer lookups.`]],
+ facts:[`A / AAAA`,`TTL 300 s`,`GeoDNS`],
+ m:[["resolver","authns","A? www.google.com"],["authns","resolver","A 142.250.74.36 · TTL 300"]],
+ wire:{from:"Recursive resolver", to:"ns1.google.com", via:"Internet routers", app:"DNS query · A? www.google.com", l4:"UDP · → port 53", l3:"IPv4 · 198.51.100.53 → 216.239.32.10", l2:"Ethernet frame", l1:"Optical fibre"}},
+
+{stage:"dns", id:"dns-return", t:12, title:`Answer returned and cached`,
+ sum:`The resolver returns the IP to the laptop, and every layer caches it for the TTL.`,
+ body:[`The resolver caches the answer and the referrals it collected, then replies to the laptop. The OS caches it, the browser caches it, and the navigation continues with an IP address.`,
+  `A full cold lookup costs several round trips, typically tens of milliseconds. A cached answer at the resolver costs one round trip, and a browser cache hit costs nothing.`],
+ say:`The resolver returns the IP, everyone caches it according to the TTL, and the browser can now open a connection.`,
+ probes:[[`What is DNSSEC?`,`Digital signatures on DNS records, with a chain of trust from the root. It proves answers weren't forged. It doesn't encrypt anything; DoH and DoT do that.`],
+  [`What if DNS fails?`,`The browser shows an error such as DNS_PROBE_FINISHED_NXDOMAIN (the name doesn't exist) or a timeout. Nothing later in this flow can start.`]],
+ facts:[`cached per TTL`,`1 RTT on resolver hit`],
+ m:[["resolver","os","A 142.250.74.36"],["os","browser","142.250.74.36"]],
+ wire:{from:"Recursive resolver", to:"Your laptop", via:"ISP + home router", app:"DNS response · www.google.com A 142.250.74.36 TTL 300", l4:"UDP · src port 53 → dst port 52144", l3:"IPv4 · 198.51.100.53 → 192.168.1.23", l2:"Wi-Fi frame · to laptop MAC 3c:22:fb:7e:41:09", l1:"5 GHz radio signal", nat:true}},
+
+/* ---------- 3 ROUTING ---------- */
+{stage:"route", id:"arp", t:1, title:`Find the first hop`,
+ sum:`142.250.74.36 isn't on the local network, so packets go to the default gateway. ARP finds the router's MAC address.`,
+ body:[`The OS compares the destination with its own address and subnet mask (192.168.1.23/24). It's outside 192.168.1.0/24, so the routing table says: send it to the default gateway, 192.168.1.1.`,
+  `Wi-Fi and Ethernet deliver frames by MAC address, not IP address. ARP broadcasts "who has 192.168.1.1?" and the router replies with its MAC. IPv6 uses Neighbor Discovery for the same job.`,
+  `This already happened for the very first DNS packet, and the answer sits in the ARP cache. It's shown here because this is where routing is explained.`],
+ say:`The OS sees the IP isn't local, so it sends to the default gateway, using ARP to learn the router's MAC address.`,
+ probes:[[`MAC address vs IP address?`,`A MAC address identifies an interface for one hop on the local network. An IP address is end-to-end. The IP header survives the whole trip (apart from NAT); the Ethernet or Wi-Fi header is replaced at every hop.`],
+  [`Switch vs router?`,`A switch forwards frames inside one network by MAC address (layer 2). A router forwards packets between networks by IP address (layer 3).`]],
+ facts:[`subnet /24`,`default gateway`,`ARP / NDP`],
+ m:[["os","router","ARP: who has 192.168.1.1?"],["router","os","192.168.1.1 is at a4:2b:8c:10:00:01"]],
+ wire:{from:"Your laptop", to:"Home router", via:null, l2:"ARP request · broadcast ff:ff:ff:ff:ff:ff · who has 192.168.1.1?", l1:"5 GHz radio signal"}},
+
+{stage:"route", id:"nat", t:1, title:`Through the home router (NAT)`,
+ sum:`To open a connection the laptop sends a TCP SYN. The router swaps the private source address for its public one.`,
+ body:[`To connect, the laptop sends a TCP SYN packet to 142.250.74.36 port 443. The next steps follow this first packet across the internet.`,
+  `Addresses like 192.168.x.x are private and can't be routed on the internet. The router performs NAT: it rewrites the source to its public IP and a free port (203.0.113.7:61001) and records the mapping, so replies find their way back to the laptop.`,
+  `The router also replaces the Wi-Fi frame with a new frame for its uplink (fibre, cable or DSL) toward the ISP.`],
+ say:`The home router NATs the private source address to its public IP and forwards the packet to the ISP.`,
+ probes:[[`Why does NAT exist?`,`IPv4 has only about 4.3 billion addresses. NAT lets a whole household share one public IP. IPv6 has enough addresses that NAT isn't needed.`],
+  [`What breaks with NAT?`,`Unsolicited inbound connections, since nothing is mapped until you send first. That's why peer-to-peer apps and games use port forwarding, UPnP or hole punching.`]],
+ facts:[`private → public IP`,`port mapping`,`RFC 1918`],
+ m:[["os","router","SYN · src 192.168.1.23:52311"]],
+ note:{lane:"router", text:"NAT → src 203.0.113.7:61001"},
+ wire:{from:"Your laptop", to:"Google edge", via:"Home router (NAT)", l4:"TCP SYN · src port 52311 → dst port 443", l3:"IPv4 · 192.168.1.23 → 142.250.74.36 · TTL 64", l2:"Wi-Fi frame · to router MAC a4:2b:8c:10:00:01", l1:"5 GHz radio signal", nat:true}},
+
+{stage:"route", id:"bgp", t:9, title:`Across the internet`,
+ sum:`Routers forward the packet hop by hop toward Google's network, guided by BGP.`,
+ body:[`Each router looks up the destination in its routing table using longest-prefix match, picks the next hop, decrements the IP TTL and puts the packet in a new link-layer frame. It never needs to understand TCP or HTTP.`,
+  `The internet is a network of networks called autonomous systems (AS). They announce which IP prefixes they can reach using BGP. Google's network is AS15169, and it connects to most large ISPs directly, through private peering or Internet Exchange Points (IXPs).`,
+  `So after a handful of hops your packet is usually already on Google's own backbone. traceroute reveals these hops.`],
+ say:`Routers forward by longest-prefix match on the destination IP. Between networks, BGP picks the path. Google peers directly with most ISPs, so the packet reaches Google's network in a few hops.`,
+ probes:[[`How does traceroute work?`,`It sends packets with TTL 1, 2, 3 and so on. Each router that decrements the TTL to zero sends back an ICMP Time Exceeded message, which reveals it.`],
+  [`What happens if a link fails?`,`Routing protocols converge on another path: OSPF or IS-IS inside a network, BGP between networks. In-flight packets may be lost, and TCP retransmits them.`]],
+ facts:[`longest-prefix match`,`BGP · AS15169`,`TTL decrements`,`IXP / peering`],
+ m:[["router","edge","SYN · forwarded hop by hop"]], focus:["isp","backbone"],
+ wire:{from:"ISP router", to:"Google edge", via:"Backbone + peering routers", l4:"TCP SYN · src port 61001 → dst port 443", l3:"IPv4 · 203.0.113.7 → 142.250.74.36 · TTL 58", l2:"New Ethernet or MPLS frame at every hop", l1:"Long-haul optical fibre"}},
+
+{stage:"route", id:"lb", t:1, title:`Google's front door`,
+ sum:`At a nearby Google edge, load balancers pick one front-end server to take the connection.`,
+ body:[`142.250.74.36 is not one machine. Google announces its front-end addresses from many sites, and inside each site Maglev load balancers spread incoming packets across many Google Front End (GFE) servers.`,
+  `Maglev uses consistent hashing on the connection's addresses and ports, so every packet of this connection lands on the same GFE, even if a load balancer fails.`,
+  `The GFE is a reverse proxy. It terminates TCP and TLS close to you, then talks to Google's data centers over Google's private network.`],
+ say:`The IP lands at a Google edge, where a layer-4 load balancer hashes the connection to one front-end reverse proxy that terminates TCP and TLS.`,
+ probes:[[`Layer 4 vs layer 7 load balancing?`,`L4 balances on IPs and ports without reading content (fast; Maglev does this). L7 understands HTTP and can route by host, path or cookie (the GFE does this).`],
+  [`Why terminate TLS at the edge?`,`Handshakes need round trips, and round trips are shorter to a nearby edge. The long haul to the data center reuses warm, pooled connections.`]],
+ facts:[`Maglev (L4)`,`GFE (L7 proxy)`,`consistent hashing`],
+ m:[], focus:["edge"], note:{lane:"edge", text:"Maglev hashes → one GFE"},
+ local:`This decision happens inside Google's edge site. The packet is the same SYN as before.`},
+
+/* ---------- 4 CONNECTION ---------- */
+{stage:"conn", id:"tcp", t:22, title:`TCP three-way handshake`,
+ sum:`SYN, SYN-ACK, ACK. Both sides agree on sequence numbers and the connection is open after one round trip.`,
+ body:[`TCP builds a reliable, ordered byte stream on top of IP packets that can be lost, duplicated or reordered. Each side picks a random initial sequence number, and the handshake confirms both.`,
+  `Options are negotiated too: maximum segment size (MSS, typically 1460 bytes), window scaling and selective acknowledgements (SACK).`,
+  `Chrome often talks to Google over HTTP/3 instead, which runs on QUIC over UDP and merges this handshake with the TLS one. The classic TCP + TLS path is shown because interviews expect it.`],
+ say:`TCP three-way handshake: SYN, SYN-ACK, ACK. It costs one round trip and sets up sequence numbers, window sizes and options.`,
+ probes:[[`How does TCP make delivery reliable?`,`Sequence numbers and acknowledgements, retransmission on timeout or duplicate ACKs, checksums, and flow control through the receive window.`],
+  [`What is congestion control?`,`TCP starts slowly (slow start) and grows its sending window until it sees loss or rising delay, then backs off. Common algorithms are CUBIC and BBR, which Google developed.`],
+  [`Why is HTTP/3 faster?`,`QUIC combines transport and TLS 1.3 setup in one round trip (zero when resuming) and avoids head-of-line blocking between streams.`]],
+ facts:[`SYN / SYN-ACK / ACK`,`1 RTT`,`port 443`,`QUIC alternative`],
+ m:[["browser","edge","SYN seq=x"],["edge","browser","SYN-ACK seq=y ack=x+1"],["browser","edge","ACK ack=y+1"]],
+ wire:{...LAPTOP, to:"Google edge (GFE)", l4:"TCP SYN · 52311 → 443 · seq=x · MSS 1460", l3:"IPv4 · 192.168.1.23 → 142.250.74.36", l2:"Wi-Fi frame · to router MAC", l1:"5 GHz radio signal", nat:true}},
+
+{stage:"conn", id:"tls", t:22, title:`TLS 1.3 handshake`,
+ sum:`Client and server agree on keys, and the server proves who it is. One more round trip.`,
+ body:[`ClientHello carries the supported cipher suites, a key share (X25519 elliptic-curve Diffie-Hellman), SNI = www.google.com so the GFE knows which certificate to present, and ALPN offering h2 and http/1.1.`,
+  `ServerHello returns the chosen cipher (for example TLS_AES_128_GCM_SHA256) and the server's key share. Both sides now derive the same session keys, and everything after this is encrypted. The server sends its certificate, a signature proving it holds the private key, and Finished.`,
+  `The client checks the certificate (next step), sends Finished, and can send the HTTP request straight away. The keys come from ephemeral Diffie-Hellman, so recorded traffic stays safe even if the server's private key leaks later. That property is forward secrecy.`],
+ say:`TLS 1.3: ClientHello with SNI, ALPN and a key share; ServerHello with the server's share, certificate and signature. Ephemeral ECDHE produces session keys with forward secrecy in one round trip.`,
+ probes:[[`Where are asymmetric and symmetric crypto used?`,`Asymmetric crypto (the certificate signature, Diffie-Hellman) authenticates and agrees on keys. Bulk data uses fast symmetric AEAD ciphers such as AES-GCM or ChaCha20-Poly1305.`],
+  [`What is SNI and why does it matter?`,`Server Name Indication tells the server which host you want before encryption starts, so one IP can serve many sites. It's visible on the wire; Encrypted Client Hello (ECH) hides it.`],
+  [`What changed from TLS 1.2?`,`One round trip instead of two, legacy ciphers removed, more of the handshake encrypted, and 0-RTT resumption.`]],
+ facts:[`TLS 1.3`,`ECDHE X25519`,`SNI`,`ALPN h2`,`1 RTT`],
+ m:[["browser","edge","ClientHello · SNI · key share"],["edge","browser","ServerHello · Certificate · Finished"],["browser","edge","Finished"]],
+ wire:{...LAPTOP, to:"Google edge (GFE)", tls:"Handshake · ClientHello · SNI www.google.com · ALPN h2", l4:"TCP · 52311 → 443", l3:"IPv4 · 192.168.1.23 → 142.250.74.36", l2:"Wi-Fi frame · to router MAC", l1:"5 GHz radio signal", nat:true}},
+
+{stage:"conn", id:"cert", t:3, title:`Certificate check`,
+ sum:`The browser verifies Google's certificate locally, against the certificate authorities it trusts.`,
+ body:[`The certificate binds a public key to the names in its Subject Alternative Name list, such as www.google.com. The browser checks the name matches, the dates are valid, and each signature chains upward: leaf certificate, then a Google Trust Services intermediate, then a root CA in the OS or browser trust store.`,
+  `It also checks Certificate Transparency, proof that the certificate was publicly logged so misissued certificates get noticed. Revocation is handled through mechanisms such as CRLSets or a stapled OCSP response.`,
+  `No network traffic is needed. If any check fails, you get a full-page warning such as NET::ERR_CERT_AUTHORITY_INVALID.`],
+ say:`The browser validates the chain up to a trusted root CA and checks the hostname, expiry, revocation and Certificate Transparency.`,
+ probes:[[`What stops an attacker presenting their own certificate?`,`They'd need a certificate for www.google.com signed by a trusted CA. CAs verify domain control before issuing, and CT logs make misissuance visible.`],
+  [`What's inside a certificate?`,`Subject and SAN names, public key, issuer, validity dates, serial number, extensions, and the issuer's signature over all of it.`]],
+ facts:[`chain of trust`,`SAN match`,`CT logs`,`local check`],
+ m:[], focus:["browser"], note:{lane:"browser", text:"verify chain → trusted root"},
+ local:`Certificate checking is computation inside the browser, using the trust store on your machine.`},
+
+/* ---------- 5 HTTP ---------- */
+{stage:"http", id:"request", t:11, title:`Send the HTTP request`,
+ sum:`Over the encrypted connection, the browser sends GET / as an HTTP/2 HEADERS frame.`,
+ body:[`ALPN chose HTTP/2. The request becomes a HEADERS frame on stream 1 with the pseudo-headers :method GET, :scheme https, :authority www.google.com and :path /, plus user-agent, accept, accept-language, accept-encoding (gzip, br, zstd) and any cookies for google.com.`,
+  `HTTP/2 compresses headers (HPACK) and multiplexes many requests as independent streams over one connection. HTTP/1.1 would have sent readable text lines instead: GET / HTTP/1.1 and Host: www.google.com.`],
+ say:`The browser sends an HTTP GET for / with headers such as Host, User-Agent, Accept and cookies, as an HTTP/2 stream over the TLS connection.`,
+ probes:[[`Main HTTP methods and status codes?`,`GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS. 2xx success, 3xx redirect (301, 302, 304), 4xx client error (400, 401, 403, 404, 429), 5xx server error (500, 502, 503).`],
+  [`HTTP/1.1 vs 2 vs 3?`,`1.1: text, one request at a time per connection. 2: binary frames, multiplexed streams and header compression over one TCP connection. 3: the same ideas over QUIC on UDP, so one lost packet doesn't stall every stream.`],
+  [`Where do the cookies come from?`,`Earlier Set-Cookie response headers. The browser attaches matching cookies according to domain, path, Secure and SameSite rules.`]],
+ facts:[`HTTP/2 stream 1`,`GET /`,`HPACK`,`cookies`],
+ m:[["browser","edge","HEADERS: GET / (stream 1)"]],
+ wire:{...LAPTOP, to:"Google edge (GFE)", app:"HTTP/2 HEADERS · stream 1 · GET / · :authority www.google.com", tls:"TLS record · Application Data · AES-128-GCM", l4:"TCP · 52311 → 443 · seq=x+1", l3:"IPv4 · 192.168.1.23 → 142.250.74.36", l2:"Wi-Fi frame · to router MAC", l1:"5 GHz radio signal", nat:true}},
+
+{stage:"http", id:"encap", t:0, title:`Encapsulation: down the stack and back up`,
+ sum:`Each layer wraps the data in its own header. Routers open only the outer layers; the server unwraps everything.`,
+ body:[`The HTTP frame is encrypted into a TLS record, cut into TCP segments with ports and sequence numbers, put into IP packets with source and destination addresses, and placed in a Wi-Fi or Ethernet frame with MAC addresses. The radio or cable carries it as signals.`,
+  `A standard Ethernet MTU is 1500 bytes, so one IP packet carries at most about 1460 bytes of TCP payload. Larger responses are split across many packets and put back in order by TCP.`,
+  `Routers unwrap only the link layer and read the IP header. Only the endpoints read TCP, and only the endpoints holding the keys can read the HTTP inside TLS. The Layer stack view shows this step best.`],
+ say:`Encapsulation: HTTP inside TLS inside TCP inside IP inside an Ethernet or Wi-Fi frame. Each hop rewrites the frame; only the endpoints unwrap everything.`,
+ probes:[[`Name the OSI layers.`,`7 Application, 6 Presentation, 5 Session, 4 Transport, 3 Network, 2 Data link, 1 Physical. The TCP/IP model merges 5 to 7 into Application. TLS sits between Transport and Application.`],
+  [`What is the MTU, and what if a packet is too big?`,`The largest payload a link carries in one frame (1500 bytes on Ethernet). IPv4 routers can fragment unless the Don't Fragment bit is set; normally Path MTU Discovery and the TCP MSS keep packets small enough.`]],
+ facts:[`MTU 1500`,`MSS 1460`,`one header per layer`],
+ m:[["browser","edge","encrypted request packet"]], focus:["isp","backbone"],
+ wire:{...LAPTOP, to:"Google edge (GFE)", app:"HTTP/2 HEADERS · stream 1 · GET /", tls:"TLS record · Application Data · AES-128-GCM", l4:"TCP · 52311 → 443 · seq=x+1", l3:"IPv4 · 192.168.1.23 → 142.250.74.36 · TTL 64", l2:"Wi-Fi frame · 3c:22:fb:7e:41:09 → a4:2b:8c:10:00:01", l1:"5 GHz radio signal", nat:true}},
+
+{stage:"http", id:"server", t:60, title:`Google builds the page`,
+ sum:`The front end forwards the request to a web server in a data center, which generates the HTML.`,
+ body:[`The GFE decrypts the request, applies abuse and DoS protection, and routes it by host and path to the right service, over Google's private backbone to a data center. Internal traffic is authenticated and encrypted with Google's ALTS.`,
+  `The web serving backend builds the response. Even the plain search page is dynamic: language, country, signed-in state, experiments and the day's doodle. It calls other internal services by RPC to assemble it.`,
+  `Time to first byte (TTFB) is the gap between sending the request and receiving the first byte of the response.`],
+ say:`The edge reverse proxy forwards the request to application servers, which build the dynamic HTML and call other backend services as needed.`,
+ probes:[[`What sits behind a typical web front end?`,`Reverse proxies or load balancers, application servers, caches (Redis, Memcached), databases, message queues and other services called over RPC.`],
+  [`How does a site serve millions of users?`,`Horizontal scaling behind load balancers, caching at every layer (CDN, application, database), replication and sharding, and serving from regions near users.`]],
+ facts:[`reverse proxy`,`internal RPC`,`TTFB`],
+ m:[["edge","backend","GET / (internal RPC)"],["backend","edge","rendered HTML"]],
+ wire:{from:"Google edge (GFE)", to:"Web server", via:"Google private backbone", app:"Internal RPC · proxied GET /", tls:"ALTS · Google-internal encryption", l4:"TCP · pooled long-lived connection", l3:"IP · Google private network", l2:"Data center Ethernet", l1:"Fibre"}},
+
+{stage:"http", id:"response", t:30, title:`The response comes back`,
+ sum:`200 OK with headers, then the compressed HTML streamed in DATA frames.`,
+ body:[`The response starts with a HEADERS frame: :status 200, content-type text/html; charset=UTF-8, content-encoding br, cache-control private, max-age=0, set-cookie, strict-transport-security, and alt-svc: h3=":443", which tells the browser it can use HTTP/3 next time.`,
+  `The body follows in DATA frames, split across many TCP segments. The browser acknowledges them as they arrive while TCP congestion control ramps up the sending rate.`,
+  `The browser doesn't wait for the whole download. It starts handing bytes to the renderer immediately.`],
+ say:`The server responds 200 OK with headers like Content-Type, Cache-Control and Set-Cookie, and streams the compressed HTML body back.`,
+ probes:[[`What would a 301 or a 304 mean here?`,`301: moved permanently, so the browser requests the new Location (google.com → www.google.com). 304: not modified, so the browser uses its cached copy.`],
+  [`Why compress?`,`HTML usually shrinks by 70 to 80%. The client lists what it accepts in Accept-Encoding, and the server picks one and names it in Content-Encoding.`]],
+ facts:[`200 OK`,`content-encoding br`,`alt-svc h3`,`streamed`],
+ m:[["edge","browser","HEADERS :status 200"],["edge","browser","DATA · HTML (br)"],["browser","edge","ACK"]],
+ wire:{from:"Google edge (GFE)", to:"Your laptop", via:"Backbone, ISP, router", app:"HTTP/2 DATA · stream 1 · <!doctype html>… (br)", tls:"TLS record · Application Data", l4:"TCP · 443 → 61001 · seq=y+1", l3:"IPv4 · 142.250.74.36 → 203.0.113.7", l2:"Ethernet / Wi-Fi frame, new at each hop", l1:"Fibre, then 5 GHz radio", nat:true}},
+
+/* ---------- 6 RENDER ---------- */
+{stage:"render", id:"parse-html", t:15, title:`Parse HTML into the DOM`,
+ sum:`The renderer turns bytes into characters, tokens and nodes, building the DOM tree while data is still arriving.`,
+ body:[`The browser process picks a renderer process for the site and streams the response into it. The HTML is decompressed, decoded (UTF-8), tokenized into tags and text, and the tree builder turns those tokens into DOM nodes.`,
+  `HTML parsing is forgiving. Malformed markup is repaired according to the HTML spec's error-handling rules instead of being rejected.`,
+  `A preload scanner reads ahead in the raw HTML to find images, scripts and stylesheets, so their downloads start before the main parser reaches them.`],
+ say:`The renderer parses HTML incrementally into the DOM, and a preload scanner discovers resources early.`,
+ probes:[[`What is the DOM?`,`The Document Object Model: a live tree of objects that represents the page and that JavaScript can read and change.`],
+  [`Why can a <script> tag slow down parsing?`,`A classic script blocks the parser. It has to download and run before parsing continues, because it might change the document. defer and async avoid that.`]],
+ facts:[`bytes → tokens → nodes`,`incremental`,`preload scanner`],
+ b:[["net","html","HTML byte stream"],["html","dom","tokens → DOM nodes"]]},
+
+{stage:"render", id:"subres", t:120, title:`Fetch subresources`,
+ sum:`The page refers to CSS, JavaScript, images and fonts. These requests reuse the connection, or open new ones to other hosts.`,
+ body:[`Requests to www.google.com go out as new HTTP/2 streams on the existing connection, so they skip DNS, TCP and TLS.`,
+  `Resources on other hosts, such as static files on www.gstatic.com, need their own DNS lookup and connection, unless the page hinted them with <link rel=preconnect> or dns-prefetch.`,
+  `The browser assigns priorities: render-blocking CSS and scripts first, visible images next, everything else later.`],
+ say:`The parser discovers CSS, JS and images. Same-origin requests are multiplexed over the open connection; other origins need DNS and new connections.`,
+ probes:[[`What is a CDN?`,`A content delivery network caches static content on servers close to users, which cuts latency and load on the origin.`],
+  [`What are resource hints?`,`preconnect, dns-prefetch, preload and prefetch: hints in HTML or headers that let the browser start work before it would otherwise know it's needed.`]],
+ facts:[`multiplexed streams`,`preconnect`,`priorities`],
+ b:[["html","net","fetch CSS, JS, images"],["net","css","stylesheet bytes"],["net","js","script bytes"]],
+ wire:{...LAPTOP, to:"Google edge (GFE)", app:"HTTP/2 HEADERS · streams 3, 5, 7 · GET logo, CSS, JS", tls:"TLS record · Application Data", l4:"TCP · 52311 → 443 (same connection)", l3:"IPv4 · 192.168.1.23 → 142.250.74.36", l2:"Wi-Fi frame · to router MAC", l1:"5 GHz radio signal", nat:true}},
+
+{stage:"render", id:"cssom-js", t:80, title:`CSSOM and JavaScript`,
+ sum:`CSS becomes the CSSOM. JavaScript runs and can change both the DOM and the styles.`,
+ body:[`Stylesheets are parsed into the CSS Object Model. CSS is render-blocking: the browser won't paint until it knows the styles, to avoid a flash of unstyled content.`,
+  `JavaScript is compiled and run by the engine (V8 in Chrome) on the renderer's main thread. Scripts can add, remove or change DOM nodes and styles, register event handlers and fetch more data.`,
+  `The main thread runs one task at a time from an event loop. A long-running script delays parsing, rendering and input handling.`],
+ say:`CSS is parsed into the CSSOM and blocks rendering. JavaScript runs on the main thread and can change the DOM and CSSOM; scripts block parsing unless they're async or defer.`,
+ probes:[[`async vs defer?`,`Both download in parallel. async runs as soon as it arrives, in any order. defer runs in document order after parsing finishes, before DOMContentLoaded.`],
+  [`What is the event loop?`,`The main thread repeatedly takes a task (a script, an event, a timer), runs it to completion, runs microtasks such as promise callbacks, and renders when a frame is due.`]],
+ facts:[`render-blocking CSS`,`parser-blocking JS`,`event loop`],
+ b:[["css","cssom","rules → CSSOM"],["js","dom","DOM API calls"]]},
+
+{stage:"render", id:"layout", t:20, title:`Render tree and layout`,
+ sum:`DOM and CSSOM combine into the render tree, then layout works out the size and position of every box.`,
+ body:[`Style calculation matches CSS rules to each element and computes final values. Elements that aren't displayed (display: none, the <head>) are left out of the render tree.`,
+  `Layout, also called reflow, computes geometry: widths, heights, positions and line breaks. It starts from the viewport size, which is why resizing the window or changing content triggers layout again.`],
+ say:`Styles are computed per element, the render tree is built from visible nodes, and layout computes each box's geometry.`,
+ probes:[[`What causes layout thrashing?`,`JavaScript that alternates between writing styles and reading geometry (offsetHeight, getBoundingClientRect) forces repeated synchronous layouts. Batch the reads before the writes.`],
+  [`display: none vs visibility: hidden?`,`display: none removes the element from the render tree and layout. visibility: hidden keeps its space but doesn't paint it.`]],
+ facts:[`style recalc`,`render tree`,`layout / reflow`],
+ b:[["dom","rtree","visible nodes"],["cssom","rtree","computed styles"],["rtree","layout","boxes → geometry"]]},
+
+{stage:"render", id:"paint", t:16, title:`Paint and composite`,
+ sum:`Paint records drawing commands, raster turns them into pixels, and the compositor assembles the layers into a frame on the GPU.`,
+ body:[`Paint walks the layout tree and records draw operations (backgrounds, text, borders, images) into display lists, split into layers.`,
+  `Raster turns those lists into bitmap tiles, usually on the GPU. The compositor thread combines the layers and applies scrolling, transforms and opacity, which is why those animate smoothly without another layout.`,
+  `The GPU process hands the frame to the OS compositor, and the display shows it at the next refresh, every 16.7 ms at 60 Hz. First Contentful Paint: the Google logo and search box appear.`],
+ say:`Paint produces draw lists per layer, raster turns them into pixels, and the compositor assembles the layers on the GPU into a frame the OS shows at the next vsync.`,
+ probes:[[`Which CSS properties are cheapest to animate?`,`transform and opacity. The compositor handles them without layout or paint. Animating width or top triggers layout on every frame.`],
+  [`What are Core Web Vitals?`,`LCP (when the largest content element is painted), INP (how quickly the page responds to input) and CLS (how much the layout shifts). Google uses them to measure page experience.`]],
+ facts:[`display lists`,`GPU raster`,`compositor`,`vsync`],
+ b:[["layout","paint","draw commands"],["paint","comp","layers → tiles"],["comp","screen","frame at vsync"]]},
+
+{stage:"render", id:"interactive", t:200, title:`Loaded and interactive`,
+ sum:`Events fire, scripts attach handlers, and the page responds to input. The connection stays open for what comes next.`,
+ body:[`DOMContentLoaded fires when the HTML is parsed and deferred scripts have run. load fires when images and other subresources have finished.`,
+  `Google's scripts attach event handlers, so typing in the search box sends background requests for suggestions over the same kept-alive connection.`,
+  `From here on, each keystroke on the page starts a much shorter version of this whole journey: an input event, some JavaScript, a network request and a repaint.`],
+ say:`DOMContentLoaded and load fire, JavaScript makes the page interactive, and the kept-alive connection serves further requests.`,
+ probes:[[`How would you find out why a page is slow?`,`The DevTools Network panel (its waterfall splits DNS, connect, TLS, TTFB and download), the Performance panel for main-thread work, Lighthouse, and real-user metrics.`],
+  [`What happens on the next visit?`,`Cached DNS, a resumed TLS session or HTTP/3 0-RTT, cached static files and a warm connection pool. Much of this journey is skipped.`]],
+ facts:[`DOMContentLoaded`,`load`,`keep-alive`],
+ b:[["js","dom","attach event handlers"],["js","net","fetch suggestions"]]}
+];
+
+STEPS.forEach((s,i)=>{
+  s.idx=i; s.st=STAGES.find(x=>x.id===s.stage);
+  const inStage=STEPS.filter(x=>x.stage===s.stage);
+  s.code=`${STAGES.indexOf(s.st)+1}.${inStage.indexOf(s)+1}`;
+});
+let acc=0; STEPS.forEach(s=>{acc+=s.t; s.cum=acc;});
+
+/* ============================================================
+   DEPTH 2 · MACHINE INTERNALS
+   One entry per step id. flow = messages on the "machine" graph
+   (user space / kernel / hardware inside your laptop), focus = extra
+   nodes to light up, note = log line when nothing moves locally.
+   ============================================================ */
+const DEEP = {
+"enter":{flow:[["kbd","input","HID report → interrupt"],["input","ui","key event via window server"]],
+ text:[`The keyboard's microcontroller scans its key matrix, debounces the switch and prepares a HID report. USB keyboards don't push: the host's USB controller (xHCI) polls the device every 1–8 ms and raises a hardware interrupt when a report arrives.`,
+  `The CPU pauses what it was doing and runs the USB driver's interrupt handler in the kernel. The input subsystem turns the report into a key code, and the window server (WindowServer on macOS, the Windows input stack, or the Wayland compositor) works out which window has focus and queues the event for that app.`,
+  `The browser process's UI thread wakes up in its event loop, reads the event, and handles Enter in the omnibox.`],
+ facts:[`USB polling 1–8 ms`,`hardware interrupt`,`kernel → user space`]},
+"parse":{flow:[], focus:["ui","sched","cpu"], note:`Pure CPU work inside the browser process. No system calls needed.`,
+ text:[`Parsing the URL and checking the HSTS preload list is plain computation in the browser process. The preload list is compiled into the browser binary, so the lookup is an in-memory search that takes microseconds.`,
+  `Code and data come from the CPU caches or RAM. Nothing here enters the kernel, so the step costs no system calls or context switches.`],
+ facts:[`user space only`,`microseconds`,`CPU caches`]},
+"cache":{flow:[["ui","net","IPC: start navigation"]], focus:["ram"],
+ text:[`The browser process asks the network service to start the request over Chromium's IPC system (Mojo), which is built on OS pipes or sockets plus shared memory between processes.`,
+  `The HTTP cache is a set of files on the SSD. Reading its index uses file system calls, but recently used data is usually already in the kernel's page cache in RAM, so the disk isn't touched.`,
+  `The pool of open connections is just data in the network service's memory: a table of sockets per origin.`],
+ facts:[`Mojo IPC`,`page cache`,`SSD only on a miss`]},
+"dns-local":{flow:[["net","dnsd","getaddrinfo() → resolver daemon"]],
+ text:[`On macOS, getaddrinfo passes the question over a Unix domain socket to the mDNSResponder daemon. On Linux, glibc follows /etc/nsswitch.conf: read /etc/hosts, then ask systemd-resolved on 127.0.0.53. On Windows the DNS Client service answers. Chrome can also use its own built-in resolver.`,
+  `The daemon checks its in-memory cache. The hosts file is read through the page cache, so that is a memory read too.`],
+ facts:[`Unix domain socket`,`mDNSResponder / systemd-resolved`,`nsswitch.conf`]},
+"dns-recursive":{flow:[["dnsd","sock","sendto(): UDP datagram"],["sock","ip","+ UDP hdr → route lookup"],["ip","wdrv","+ IP hdr → TX queue"],["wdrv","nic","DMA descriptor + doorbell"]],
+ text:[`sendto() is a system call: the CPU switches from user mode to kernel mode. The kernel copies the few dozen bytes into a packet buffer (sk_buff on Linux, mbuf on macOS and BSD), adds the UDP header, looks up the route and the router's MAC address in the ARP cache, and adds the IP header.`,
+  `The Wi-Fi driver puts a descriptor pointing at that buffer into a transmit ring in RAM, then writes a doorbell register on the Wi-Fi chip over PCIe. The chip fetches the bytes itself by DMA; the CPU never copies them out.`,
+  `The chip's firmware waits for a quiet moment on the channel (CSMA/CA), encrypts the frame with the WPA2/WPA3 session key in hardware, and the radio sends it as OFDM symbols on 5 GHz.`],
+ facts:[`system call`,`sk_buff / mbuf`,`TX ring + DMA`,`WPA encryption in hardware`]},
+"dns-root":{flow:[], focus:["dnsd","sched"], note:`Your laptop: the resolver daemon sleeps, waiting for a reply or a timeout.`,
+ text:[`While the resolver works, nothing happens on your laptop for this lookup. The daemon's thread is blocked in kqueue, epoll or a similar wait call, which tells the kernel scheduler it has nothing to do until a packet arrives or a timer fires.`,
+  `That timer is the retry. If no answer comes within a timeout (around a second, depending on the OS), the query is sent again or another DNS server is tried.`],
+ facts:[`blocked thread`,`kqueue / epoll`,`retry timer`]},
+"dns-tld":{flow:[], focus:["sched","cpu"], note:`Your laptop: the scheduler gives the CPU cores to other work.`,
+ text:[`With the browser waiting, the scheduler hands the CPU cores to other runnable threads: other tabs, background apps, the OS itself.`,
+  `On laptops with performance and efficiency cores (Apple silicon, recent Intel), background work tends to land on the efficiency cores. If there is nothing to run at all, a core drops into an idle state (a C-state) within microseconds to save power.`],
+ facts:[`context switches`,`P-cores / E-cores`,`idle C-states`]},
+"dns-auth":{flow:[], focus:["nic","wdrv"], note:`Your laptop: the Wi-Fi chip listens for the reply.`,
+ text:[`The Wi-Fi chip has its own small processor and firmware. In power-save mode it can doze between the access point's beacons (about every 102 ms), but with a reply expected the driver keeps it awake and listening.`,
+  `Frames are filtered by MAC address in the chip's hardware, so the main CPU is never woken by traffic meant for other devices on the network.`],
+ facts:[`NIC firmware`,`beacons ~102 ms`,`MAC filtering in hardware`]},
+"dns-return":{flow:[["nic","ram","DMA into RX ring"],["nic","wdrv","interrupt"],["wdrv","ip","packet handed up"],["ip","sock","UDP demux: port 52144"],["sock","dnsd","recvfrom() returns"],["dnsd","net","IPC: 142.250.74.36"]],
+ text:[`The Wi-Fi chip decrypts the frame, writes it by DMA into a receive buffer the driver set aside in RAM, and raises an interrupt. Under heavy traffic Linux switches to polling (NAPI) instead of taking one interrupt per packet.`,
+  `The kernel checks the IP and UDP headers, finds the socket bound to destination port 52144, appends the data to its receive queue and wakes the thread waiting on it.`,
+  `The daemon's recvfrom() call returns. It caches the answer and passes the address back to the browser over IPC.`],
+ facts:[`RX ring`,`interrupt / NAPI`,`port demultiplexing`]},
+"arp":{flow:[["ip","wdrv","ARP request (built by kernel)"],["wdrv","nic","broadcast frame"],["nic","wdrv","ARP reply"],["wdrv","ip","update neighbour table"]],
+ text:[`ARP is handled entirely inside the kernel; no application ever sees it. The kernel keeps a neighbour table you can inspect with arp -a or ip neigh. Entries expire after a few minutes and are refreshed.`,
+  `If a packet needs a MAC address that isn't known yet, the kernel parks it in a small queue, sends the ARP request, and releases the packet when the reply arrives.`],
+ facts:[`neighbour table`,`arp -a / ip neigh`,`kernel only`]},
+"nat":{flow:[["net","sock","connect() (non-blocking)"],["sock","ip","TCP SYN · state SYN_SENT"],["ip","wdrv","+ IP hdr"],["wdrv","nic","DMA → radio"]],
+ text:[`The network service creates a socket and calls connect() in non-blocking mode. The kernel picks a free ephemeral source port (49152–65535 on macOS and Windows, 32768–60999 on Linux), creates a TCP control block and sends the SYN.`,
+  `It also starts a retransmission timer. If no SYN-ACK arrives within about a second, it resends the SYN and doubles the wait each time.`,
+  `NAT happens on the router, which is a small computer with its own kernel, often Linux, where connection tracking (conntrack) keeps the translation table.`],
+ facts:[`connect()`,`ephemeral ports`,`SYN_SENT`,`retransmit timer`]},
+"bgp":{flow:[], focus:["sock"], note:`Your laptop: the socket waits in state SYN_SENT.`,
+ text:[`Your laptop does nothing until the SYN-ACK arrives. Out on the internet, routers work very differently from your laptop.`,
+  `Large routers forward packets in dedicated chips (ASICs), not in software. The forwarding table sits in special memory (TCAM) that finds the longest matching prefix in a single lookup, at hundreds of millions of packets per second. A separate control-plane CPU runs BGP and programs that table.`],
+ facts:[`ASIC forwarding`,`TCAM`,`control vs data plane`]},
+"lb":{flow:[], focus:["sock"], note:`Your laptop: still waiting for the SYN-ACK.`,
+ text:[`Maglev runs on ordinary Linux servers but processes packets in user space, bypassing the kernel's network stack for speed. It reads packets straight from the network card, hashes them and passes them on without ever terminating the connection.`,
+  `The GFE servers behind it are where a kernel actually accepts the TCP connection, as on any other server.`],
+ facts:[`kernel bypass`,`commodity servers`]},
+"tcp":{flow:[["nic","wdrv","SYN-ACK frame"],["wdrv","ip","packet up"],["ip","sock","kernel sends ACK · ESTABLISHED"],["sock","net","epoll/kqueue: writable"]],
+ text:[`The SYN-ACK climbs the receive path. The kernel's TCP code checks the acknowledgement number, sends the final ACK itself and moves the connection to ESTABLISHED. The application takes no part in this.`,
+  `The kernel also measures the round-trip time from this exchange and uses it to set its retransmission timer.`,
+  `The network service learns the connection is ready through a readiness notification (kqueue on macOS, epoll on Linux, IOCP on Windows) and moves on to TLS.`],
+ facts:[`TCP lives in the kernel`,`ESTABLISHED`,`epoll / kqueue / IOCP`]},
+"tls":{flow:[["net","sock","write(ClientHello)"],["sock","ip","TCP segment"],["ip","wdrv","+ IP hdr"],["wdrv","nic","DMA → radio"]], focus:["cpu"],
+ text:[`TLS runs in user space, inside the network service (BoringSSL in Chrome). The kernel only sees opaque bytes going into a TCP socket.`,
+  `The key share needs fresh randomness from the OS random number generator (getrandom, arc4random or BCryptGenRandom), which is seeded from hardware entropy sources. X25519 and later AES-GCM run on the CPU, and AES uses dedicated instructions: AES-NI on x86, the ARMv8 crypto extensions on Apple silicon.`],
+ facts:[`TLS in user space`,`OS random generator`,`AES-NI / ARMv8 crypto`]},
+"cert":{flow:[], focus:["net","cpu"], note:`CPU work in the network service: signature checks against the root store.`,
+ text:[`Each signature check is a few public-key operations (ECDSA or RSA), taking from microseconds to about a millisecond of CPU time.`,
+  `Chrome ships its own root store and verifier on most platforms, while Safari asks macOS trust services, backed by the system keychain. Either way the root certificates are already on your disk and are read through the page cache.`],
+ facts:[`ECDSA / RSA verify`,`root store on disk`]},
+"request":{flow:[["net","sock","write(): encrypted record"],["sock","ip","TCP segment"],["ip","wdrv","+ IP hdr"],["wdrv","nic","DMA → radio"]],
+ text:[`The encrypted request goes into the socket's send buffer through a write() system call, which returns as soon as the kernel holds a copy. Chrome disables Nagle's algorithm (TCP_NODELAY) so small writes leave immediately.`,
+  `Many network chips take over part of the work: checksum offload calculates TCP and IP checksums in hardware, and segmentation offload (TSO) lets the kernel hand over one large buffer that the chip cuts into packets.`],
+ facts:[`send buffer`,`TCP_NODELAY`,`checksum offload / TSO`]},
+"encap":{flow:[["net","sock","payload copied in"],["sock","ip","+ TCP header"],["ip","wdrv","+ IP header"],["wdrv","nic","+ 802.11 header → radio"]],
+ text:[`In memory, encapsulation happens without copying. The kernel reserves headroom at the front of the packet buffer, and each layer writes its header into the space just in front of the previous one.`,
+  `The driver adds the 802.11 header and hands the chip a pointer. The chip encrypts the payload with the Wi-Fi session key, appends the frame checksum, and the radio sends the bits as OFDM symbols, at several hundred megabits per second on a good 5 GHz link.`],
+ facts:[`headroom, no copies`,`802.11 header`,`OFDM`]},
+"server":{flow:[], focus:["sock"], note:`Your laptop: the socket waits for response data.`,
+ text:[`Google's servers are ordinary Linux machines in large clusters. A cluster scheduler (Borg) packs programs onto them as jobs, and the programs call each other over an internal RPC system (Stubby, the predecessor of gRPC).`,
+  `On your laptop, the network service's thread has nothing to do and sleeps until data arrives on the socket.`],
+ facts:[`Borg`,`internal RPC`,`sleeping thread`]},
+"response":{flow:[["nic","wdrv","frames arrive (DMA + IRQ)"],["wdrv","ip","packets up (GRO)"],["ip","sock","in-order data · ACKs"],["sock","net","read()"],["net","rend","shared-memory data pipe"]],
+ text:[`Now many packets arrive in quick succession. The kernel merges consecutive TCP packets into larger chunks (GRO) to save work, puts the data in order in the socket's receive buffer, and sends ACKs on its own. The receive window it advertises tells Google how much more it can buffer.`,
+  `The network service read()s the bytes, decrypts them with the CPU's AES instructions, and writes the body into a shared-memory data pipe that the renderer reads directly, with no extra copy through the browser process.`],
+ facts:[`GRO`,`receive window`,`delayed ACKs`,`shared memory`]},
+"parse-html":{flow:[["net","rend","HTML bytes (shared memory)"],["rend","sched","main thread runs parser"],["sched","cpu","scheduled on a core"]],
+ text:[`The renderer is sandboxed and can't open files or sockets itself (seccomp-bpf on Linux, Seatbelt on macOS, restricted tokens on Windows). Everything it needs arrives over IPC from the browser process and the network service.`,
+  `Parsing runs on the renderer's main thread. DOM nodes are allocated on the renderer's heap and managed by a garbage collector (Oilpan in Chrome).`],
+ facts:[`sandboxed process`,`seccomp / Seatbelt`,`garbage-collected DOM`]},
+"subres":{flow:[["rend","net","IPC: fetch requests"],["net","sock","more streams, same socket"]],
+ text:[`The renderer can't fetch anything itself, so every subresource request goes over IPC to the network service, which checks the HTTP cache and opens new HTTP/2 streams on the existing socket.`,
+  `Cache hits are read from files on disk: an NVMe SSD on a modern laptop, or more often the page cache in RAM.`],
+ facts:[`IPC per request`,`NVMe SSD / page cache`]},
+"cssom-js":{flow:[["rend","sched","main + compiler threads"],["sched","cpu","run on cores"]], focus:["ram"],
+ text:[`JavaScript starts in an interpreter (Ignition in V8). Hot functions are compiled to native machine code on background threads by optimising compilers (Sparkplug, Maglev, TurboFan). The JIT writes that code into memory pages and then marks them executable.`,
+  `The scheduler spreads the main thread and the compiler threads across cores. Speed depends heavily on the CPU caches: data already in L1 or L2 cache is far quicker to reach than RAM.`],
+ facts:[`JIT compilation`,`background threads`,`CPU caches`]},
+"layout":{flow:[["rend","sched","layout on main thread"],["sched","cpu","CPU-bound work"]], focus:["ram"],
+ text:[`Style and layout are CPU-bound walks over trees held in RAM. Measuring text means shaping it: a shaping engine (HarfBuzz) turns characters into positioned glyphs, using font files loaded from disk or the network.`,
+  `Nothing here involves the GPU or the network. On a slow CPU, a large page can spend tens of milliseconds in style and layout.`],
+ facts:[`CPU-bound`,`text shaping (HarfBuzz)`,`fonts from disk`]},
+"paint":{flow:[["rend","gpup","compositor frame"],["gpup","gfx","Metal / D3D / Vulkan calls"],["gfx","gpu","command buffers → raster"],["gpu","display","framebuffer → panel"]], focus:["comp"],
+ text:[`The renderer sends its compositor frame to the GPU process. Only that process talks to the graphics driver, so a driver crash can't take the whole browser down. It turns the work into Metal, Direct3D or Vulkan calls.`,
+  `The driver builds command buffers that the GPU reads by DMA, and the GPU rasterises the tiles into its memory. The OS compositor (WindowServer, DWM or the Wayland compositor) then combines the browser window with every other window on screen.`,
+  `The display controller scans the finished framebuffer out to the panel at the refresh rate, over eDP on a laptop or HDMI/DisplayPort to an external screen.`],
+ facts:[`GPU process`,`Metal / D3D / Vulkan`,`OS compositor`,`scanout at vsync`]},
+"interactive":{flow:[["kbd","input","next keystroke"],["input","ui","key event"],["ui","rend","IPC: input event"],["rend","net","fetch suggestions"],["net","sock","write on kept-alive socket"]],
+ text:[`The next key you type in the search box takes the same hardware path as the first Enter. This time the browser process forwards the event over IPC to the renderer, which runs the page's JavaScript handler.`,
+  `The suggestion request reuses the open socket, so it skips DNS, TCP and TLS and goes straight down the stack to the Wi-Fi chip.`],
+ facts:[`input → renderer IPC`,`warm socket`,`full circle`]}
+};
+STEPS.forEach(s=>{s.deep=DEEP[s.id];});
+
+/* ============================================================
+   DEPTH 0 · HIGH LEVEL
+   Plain-language summary per stage, for non-technical readers.
+   ============================================================ */
+const PLAIN = {
+"input":{label:"You",sub:"type and press Enter",doing:"you ask for google.com",title:"You ask for a page",
+ line:`The browser works out what you typed and turns it into a precise request.`,
+ text:[`When you type google.com and press Enter, the browser works out that you mean a website rather than a search, and that it should use a secure connection.`,
+  `Before going anywhere, it checks whether it already has a recent copy of the page, or a line to Google that's still open, so it can save time.`],
+ analogy:`Like telling a taxi driver "Google, please". The driver first works out exactly where you mean before setting off.`,
+ takeaway:`The browser is a program working on your behalf. It turns a few typed letters into an exact request.`},
+"dns":{label:"Phone book",sub:"name → number",doing:"looking up the address",title:"Looking up the address",
+ line:`The internet's phone book turns google.com into a number computers can use.`,
+ text:[`Computers find each other by numbers (IP addresses), not names. So your computer asks a lookup service, usually run by your internet provider, for Google's number.`,
+  `If the service doesn't already know, it asks a chain of directories: first the one for all ".com" names, then Google's own. Google answers with the number of one of its computers near you. Everyone remembers the answer for a while, so the next visit skips this.`],
+ analogy:`DNS is the internet's phone book. You know the name; it gives you the number to dial.`,
+ takeaway:`Names are for people, numbers are for machines. DNS links the two.`},
+"route":{label:"The internet",sub:"hop by hop",doing:"travelling across networks",title:"Finding the way",
+ line:`Your request travels in small packets from router to router until it reaches Google.`,
+ text:[`Your request is sent as small packets. Your Wi-Fi router passes them to your internet provider, and from there routers hand them on, each one moving them a step closer.`,
+  `Google connects directly to most big providers, so it usually takes only a few hops. At Google, a kind of front desk picks one of thousands of computers to deal with you.`],
+ analogy:`Like posting a letter. It goes to your local post office, then through sorting centres, and each one only needs to know the next stop.`,
+ takeaway:`No single machine knows the whole route. Each one only knows the next step.`},
+"conn":{label:"Secure line",sub:"the padlock",doing:"agreeing on a secret code",title:"Opening a secure line",
+ line:`Your browser and Google agree on a secret code and check that it really is Google.`,
+ text:[`First, your browser and Google check that they can reach each other. Then they agree on encryption keys, so nobody in between, such as whoever runs the Wi-Fi or your provider, can read or change what is sent.`,
+  `Google also shows a certificate: a kind of ID card, vouched for by a trusted authority, proving it really is Google. That is what the padlock in the address bar means.`],
+ analogy:`Like a phone call where you first check the other person's ID, then switch to a secret language only the two of you understand.`,
+ takeaway:`The padlock means private, unaltered, and really Google.`},
+"http":{label:"Google",sub:"request and reply",doing:"asking Google for the page",title:"Asking and answering",
+ line:`The browser asks for the home page, and Google prepares it and sends it back.`,
+ text:[`Over the secure line, the browser asks: "Please send me your home page." Google's computers put together a page that suits you: your language, your country, whether you're signed in.`,
+  `They squeeze the page so it travels faster and send it back as a text document written in HTML, the language web pages are written in.`],
+ analogy:`Like ordering in a restaurant. You ask for something, the kitchen prepares it for you, and the waiter brings it back.`,
+ takeaway:`The web is a conversation: a request goes out, a response comes back.`},
+"render":{label:"Your screen",sub:"drawing the page",doing:"drawing the page",title:"Drawing the page",
+ line:`The browser reads the reply, fetches the extras, and paints the page on your screen.`,
+ text:[`The browser reads the HTML and fetches the extra pieces: the logo, the styling and small programs written in JavaScript. Then it works out where everything goes and paints it, using the computer's graphics chip.`,
+  `Now the page is ready for you to type, and every search you make starts a much shorter version of this same journey.`],
+ analogy:`Like flat-pack furniture. The HTML is the parts list, the styling is the paint and finish, and JavaScript adds the moving parts.`,
+ takeaway:`About half a second, thousands of small steps, and all you see is the finished page.`}
+};
+STAGES.forEach(st=>{st.plain=PLAIN[st.id];});
+
+/* ============================================================
+   GRAPHS (network map and browser internals)
+   ============================================================ */
+const GRAPHS = {
+  net:{ vb:[1000,475],
+    frames:[{x:12,y:92,w:168,h:258,label:"Your laptop"},{x:538,y:12,w:458,h:102,label:"DNS hierarchy"},{x:728,y:250,w:268,h:214,label:"Google · AS15169"}],
+    nodes:{
+      browser:{x:95,y:165,t:"Browser",s:"tabs · network service"},
+      os:{x:95,y:305,t:"Operating system",s:"stub resolver · TCP/IP"},
+      router:{x:268,y:305,t:"Home router",s:"Wi-Fi · NAT · DHCP"},
+      isp:{x:445,y:305,t:"ISP network",s:"access + core routers"},
+      resolver:{x:445,y:155,t:"Recursive resolver",s:"ISP · 8.8.8.8 · 1.1.1.1"},
+      root:{x:620,y:68,t:"Root server",s:"a–m.root-servers.net"},
+      tld:{x:775,y:68,t:".com TLD",s:"a.gtld-servers.net"},
+      authns:{x:922,y:68,t:"ns1.google.com",s:"authoritative"},
+      backbone:{x:630,y:305,t:"Internet backbone",s:"BGP · IXPs · peering"},
+      edge:{x:820,y:305,t:"Google edge",s:"Maglev LB · GFE"},
+      backend:{x:820,y:420,t:"Google data center",s:"web serving backends"}
+    },
+    links:[["browser","os"],["os","router",null,"Wi-Fi"],["router","isp",null,"fibre / cable"],["isp","resolver"],
+      ["resolver","root"],["resolver","tld"],["resolver","authns"],["isp","backbone",null,"peering"],["backbone","edge"],["edge","backend",null,"private backbone"]]
+  },
+  browser:{ vb:[1000,440],
+    frames:[{x:8,y:20,w:984,h:122,label:"Browser process · input and navigation"},{x:8,y:196,w:984,h:236,label:"Renderer process · from bytes to pixels"}],
+    nodes:{
+      kbd:{x:85,y:88,t:"Keyboard + OS",s:"HID → key event"},
+      ui:{x:250,y:88,t:"UI thread",s:"window · address bar"},
+      omni:{x:415,y:88,t:"Omnibox",s:"URL or search?"},
+      hsts:{x:580,y:88,t:"HSTS / HTTPS",s:"force https://"},
+      cache:{x:745,y:88,t:"Caches + pool",s:"HTTP cache · sockets"},
+      net:{x:910,y:88,t:"Network service",s:"DNS · TCP · TLS · HTTP"},
+      html:{x:85,y:262,t:"HTML parser",s:"bytes → tokens"},
+      dom:{x:250,y:262,t:"DOM",s:"document tree"},
+      js:{x:580,y:262,t:"JS engine",s:"V8 · event loop"},
+      css:{x:85,y:382,t:"CSS parser",s:"stylesheets"},
+      cssom:{x:250,y:382,t:"CSSOM",s:"style rules"},
+      rtree:{x:415,y:322,t:"Render tree",s:"styled visible nodes"},
+      layout:{x:580,y:382,t:"Layout",s:"geometry"},
+      paint:{x:745,y:382,t:"Paint + raster",s:"display lists · tiles"},
+      comp:{x:910,y:382,t:"Compositor",s:"GPU · layers"},
+      screen:{x:910,y:262,t:"Display",s:"pixels at vsync"}
+    },
+    links:[["kbd","ui"],["ui","omni"],["omni","hsts"],["hsts","cache"],["cache","net"],
+      ["net","html",[[910,168],[85,168]],"response bytes"],["html","dom"],["html","css",null,""],["dom","js"],["css","cssom"],
+      ["dom","rtree"],["cssom","rtree"],["rtree","layout"],["layout","paint"],["paint","comp"],["comp","screen"]]
+  },
+  machine:{ vb:[1060,400],
+    bands:[{x:100,y:40,w:956,h:80,label:"USER SPACE",sub:"processes"},{x:100,y:170,w:956,h:80,label:"KERNEL",sub:"drivers · stacks"},{x:100,y:305,w:956,h:80,label:"HARDWARE",sub:"chips · buses"}],
+    nodes:{
+      ui:{x:180,y:80,t:"Browser process",s:"UI · omnibox"},
+      rend:{x:340,y:80,t:"Renderer",s:"sandboxed · DOM · V8"},
+      net:{x:500,y:80,t:"Network service",s:"sockets · TLS · cache"},
+      dnsd:{x:660,y:80,t:"DNS daemon",s:"mDNSResponder etc."},
+      gpup:{x:820,y:80,t:"GPU process",s:"Skia · graphics API"},
+      comp:{x:980,y:80,t:"OS compositor",s:"WindowServer · DWM"},
+      input:{x:180,y:210,t:"Input stack",s:"USB HID driver"},
+      sched:{x:340,y:210,t:"Scheduler",s:"threads · timers"},
+      sock:{x:500,y:210,t:"Sockets · TCP/UDP",s:"buffers · state"},
+      ip:{x:660,y:210,t:"IP · routing · ARP",s:"route + neighbour"},
+      wdrv:{x:820,y:210,t:"Wi-Fi driver",s:"TX / RX rings"},
+      gfx:{x:980,y:210,t:"GPU driver",s:"command buffers"},
+      kbd:{x:180,y:345,t:"Keyboard",s:"USB HID device"},
+      cpu:{x:340,y:345,t:"CPU cores",s:"P/E cores · caches"},
+      ram:{x:500,y:345,t:"RAM",s:"buffers · page cache"},
+      nic:{x:660,y:345,t:"Wi-Fi chip",s:"firmware · radio"},
+      display:{x:820,y:345,t:"Display",s:"panel · refresh"},
+      gpu:{x:980,y:345,t:"GPU",s:"raster · VRAM"}
+    },
+    links:[["kbd","input",null,"USB · IRQ"],["input","ui"],["ui","rend"],["ui","net",[[180,24],[500,24]],"IPC"],["rend","net"],["net","dnsd"],["dnsd","sock"],
+      ["net","sock",null,"syscalls"],["rend","sched"],["sched","cpu"],["sock","ip"],["ip","wdrv"],["wdrv","nic",null,"PCIe"],["nic","ram"],
+      ["rend","gpup",[[340,10],[820,10]]],["gpup","gfx"],["comp","gfx"],["gfx","gpu"],["gpu","display"]]
+  }
+};
+const NW=142, NH=52;
+
+function linkPts(g,l){const a=g.nodes[l[0]],b=g.nodes[l[1]];return [[a.x,a.y],...(l[2]||[]),[b.x,b.y]];}
+function route(g,from,to){
+  if(from===to) return [from];
+  const adj={}; g.links.forEach(l=>{(adj[l[0]]=adj[l[0]]||[]).push(l[1]);(adj[l[1]]=adj[l[1]]||[]).push(l[0]);});
+  const prev={[from]:null}, q=[from];
+  while(q.length){const n=q.shift(); if(n===to)break; (adj[n]||[]).forEach(m=>{if(!(m in prev)){prev[m]=n;q.push(m);}});}
+  const path=[]; let c=to; while(c!=null){path.unshift(c);c=prev[c];} return path;
+}
+function pathPts(g,nodes){
+  let pts=[];
+  for(let i=0;i<nodes.length-1;i++){
+    const a=nodes[i],b=nodes[i+1];
+    const l=g.links.find(l=>(l[0]===a&&l[1]===b)||(l[0]===b&&l[1]===a));
+    let p=linkPts(g,l); if(l[0]!==a) p=p.slice().reverse();
+    pts=pts.concat(i? p.slice(1):p);
+  }
+  return pts;
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const NS="http://www.w3.org/2000/svg";
+function S(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in (attrs||{}))e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ANIM = {paused:false};  /* toggled by the Pause animation button; every animation checks it */
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+/* Packet animation engine: moves a dot (and optional label pill) along polylines, one item after another, looping. */
+class Flow{
+  constructor(layer,items,{label=true,onActive=null,vbw=1000}={}){
+    this.layer=layer;this.items=items;this.label=label;this.onActive=onActive;this.vbw=vbw;this.last=-2;
+    let t=0; items.forEach(it=>{let L=0,seg=[];for(let i=1;i<it.pts.length;i++){const d=Math.hypot(it.pts[i][0]-it.pts[i-1][0],it.pts[i][1]-it.pts[i-1][1]);seg.push(d);L+=d;}
+      it.seg=seg;it.len=L;it.dur=Math.max(1600,Math.min(4200,L*4.2));it.start=t;t+=it.dur+450;});  /* ms; slow enough to read the tag */
+    this.total=t+1800;
+    this.trails=items.map(it=>S("polyline",{class:"trail",points:it.pts.map(p=>p.join(",")).join(" ")},layer));
+    this.dot=S("circle",{class:"pkt",r:7,cx:-50,cy:-50},layer);
+    if(label){this.pill=S("g",{class:"pill"},layer);this.pr=S("rect",{rx:5,height:20},this.pill);this.pt=S("text",{y:14},this.pill);}
+  }
+  at(it,f){let d=f*it.len;for(let i=0;i<it.seg.length;i++){if(d<=it.seg[i]||i===it.seg.length-1){const r=it.seg[i]?Math.min(1,d/it.seg[i]):1,a=it.pts[i],b=it.pts[i+1];return [a[0]+(b[0]-a[0])*r,a[1]+(b[1]-a[1])*r];}d-=it.seg[i];}return it.pts[0];}
+  start(){
+    if(!this.items.length)return;
+    if(reduced){this.trails.forEach(t=>t.classList.add("act"));this.dot.remove();if(this.pill)this.pill.remove();return;}
+    let last=performance.now(), el=0;
+    const loop=now=>{
+      if(!ANIM.paused) el+=now-last;
+      last=now;
+      const tt=el%this.total; let idx=-1;
+      this.items.forEach((it,i)=>{if(tt>=it.start&&tt<it.start+it.dur)idx=i;});
+      if(idx!==this.last){this.trails.forEach((t,i)=>t.classList.toggle("act",i===idx));this.onActive&&this.onActive(idx);this.last=idx;}
+      if(idx<0){this.dot.setAttribute("cx",-50);if(this.pill)this.pill.setAttribute("transform","translate(-999,-999)");}
+      else{const it=this.items[idx],f=(tt-it.start)/it.dur,e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2,[x,y]=this.at(it,e);
+        this.dot.setAttribute("cx",x);this.dot.setAttribute("cy",y);
+        if(this.pill){ if(this.pt.textContent!==it.label){this.pt.textContent=it.label;} const w=it.label.length*6.7+14;
+          this.pr.setAttribute("width",w);this.pt.setAttribute("x",7);
+          const px=Math.max(4,Math.min(this.vbw-w-4,x-w/2)), py=Math.max(2,y-34);
+          this.pill.setAttribute("transform",`translate(${px},${py})`);}}
+      this.raf=requestAnimationFrame(loop);
+    };
+    this.raf=requestAnimationFrame(loop);
+  }
+  stop(){cancelAnimationFrame(this.raf);}
+}
+
+/* ============================================================
+   VIEW 1 · NETWORK MAP
+   ============================================================ */
+const MapView={
+  label:"Network map", short:"Where the packets travel",
+  desc:"A topology of every machine involved. Each step lights up the machines it uses and animates its messages along the real path. Browser-only steps zoom into the browser itself.",
+  render(step,host){
+    const gname=step.b?"browser":(step.m?"net":step.st.graph), g=GRAPHS[gname];
+    const msgs=(gname==="browser"?step.b:step.m)||[];
+    const focus=[...(step.focus||[])]; if(step.note&&g.nodes[step.note.lane])focus.push(step.note.lane);
+    this.flow=drawGraph(host,g,msgs,{focus,notes:[step.note&&step.note.text,step.local].filter(Boolean),
+      title:gname==="browser"?"Inside your browser":"The network path",
+      hint:gname==="browser"?"Zoomed in: these steps happen on your own machine":"Moving dots are packets · highlighted boxes take part in this step",
+      aria:`Diagram for step ${step.code}: ${step.title}`});
+  },
+  stop(){this.flow&&this.flow.stop();}
+};
+
+/* Shared graph renderer used by the Network map and Machine internals views. */
+function drawGraph(host,g,msgs,{focus=[],notes=[],title,hint,aria}){
+  const head=document.createElement("div");head.className="viz-head";
+  head.innerHTML=`<h2>${title}</h2><span class="hint">${hint}</span>`;
+  host.appendChild(head);
+  const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+  const svg=S("svg",{viewBox:`0 0 ${g.vb[0]} ${g.vb[1]}`,role:"img","aria-label":aria||title},box);
+  (g.frames||[]).forEach(f=>{S("rect",{class:"frame",x:f.x,y:f.y,width:f.w,height:f.h,rx:12},svg);S("text",{class:"frame-lbl",x:f.x+12,y:f.y+16},svg,f.label);});
+  (g.bands||[]).forEach(b=>{S("rect",{class:"frame",x:b.x,y:b.y,width:b.w,height:b.h,rx:12},svg);
+    S("text",{class:"band-lbl",x:14,y:b.y+b.h/2-1},svg,b.label);S("text",{class:"band-sub",x:14,y:b.y+b.h/2+15},svg,b.sub);});
+  const active=new Set(focus), hotLinks=new Set();
+  msgs.forEach(m=>{const r=route(g,m[0],m[1]);r.forEach(n=>active.add(n));for(let i=0;i<r.length-1;i++)hotLinks.add([r[i],r[i+1]].sort().join("|"));});
+  g.links.forEach(l=>{
+    const p=linkPts(g,l), hot=hotLinks.has([l[0],l[1]].sort().join("|"));
+    S("polyline",{class:"link"+(hot?" hot":""),points:p.map(q=>q.join(",")).join(" ")},svg);
+    if(l[3]){const a=l[2]?p[1]:p[0],b=l[2]?p[2]:p[p.length-1];S("text",{class:"link-lbl",x:(a[0]+b[0])/2,y:(a[1]+b[1])/2-7,"text-anchor":"middle"},svg,l[3]);}
+  });
+  for(const id in g.nodes){
+    const n=g.nodes[id], on=active.has(id);
+    const G=S("g",{class:"node"+(on?" on":" dim"),transform:`translate(${n.x-NW/2},${n.y-NH/2})`},svg);
+    S("rect",{width:NW,height:NH,rx:9},G);
+    S("text",{class:"t",x:NW/2,y:22,"text-anchor":"middle"},G,n.t);
+    S("text",{class:"s",x:NW/2,y:39,"text-anchor":"middle"},G,n.s);
+  }
+  const layer=S("g",{},svg);
+  const ol=document.createElement("ol");ol.className="log";
+  ol.innerHTML=msgs.map((m,i)=>`<li data-i="${i}"><span class="n">${i+1}</span><span><span class="who">${esc(g.nodes[m[0]].t)} → ${esc(g.nodes[m[1]].t)}</span><br>${esc(m[2])}</span></li>`).join("")
+    +notes.map(t=>`<li class="note"><span class="n">·</span><span>${esc(t)}</span></li>`).join("");
+  host.appendChild(ol);
+  const items=msgs.map(m=>({pts:pathPts(g,route(g,m[0],m[1])),label:m[2]}));
+  const flow=new Flow(layer,items,{onActive:i=>ol.querySelectorAll("li[data-i]").forEach(li=>li.classList.toggle("act",+li.dataset.i===i)),vbw:g.vb[0]});
+  flow.start();
+  return flow;
+}
+
+/* ============================================================
+   VIEW 5 · MACHINE INTERNALS (depth 2)
+   ============================================================ */
+const InternalsView={
+  label:"Machine internals", short:"Inside your laptop",
+  desc:"The next zoom level: the same step inside your own laptop, across browser processes, the kernel's network and graphics stacks, drivers and the hardware they drive. For steps that happen elsewhere, it shows what your laptop does while it waits.",
+  render(step,host){
+    const d=step.deep||{flow:[]};
+    this.flow=drawGraph(host,GRAPHS.machine,d.flow||[],{focus:d.focus||[],notes:d.note?[d.note]:[],
+      title:"Inside your laptop",hint:"Moving dots are data crossing between processes, the kernel and hardware",
+      aria:`Machine internals for step ${step.code}: ${step.title}`});
+  },
+  stop(){this.flow&&this.flow.stop();}
+};
+
+/* ============================================================
+   VIEW 2 · LAYER STACK
+   ============================================================ */
+const LAYERS=["app","tls","l4","l3","l2","l1"];
+const LNAME={app:["Application","L7 · HTTP, DNS"],tls:["Security","TLS / ALTS"],l4:["Transport","L4 · TCP, UDP"],l3:["Network","L3 · IP"],l2:["Data link","L2 · Wi-Fi, Ethernet"],l1:["Physical","L1 · radio, fibre"]};
+const LIVES={app:"Browser (user space)",tls:"Browser's TLS library",l4:"OS kernel network stack",l3:"OS kernel network stack",l2:"NIC driver + firmware",l1:"Wi-Fi radio / network card"};
+const ADD={app:"creates the data",tls:"encrypts it into a TLS record",l4:"adds the transport header",l3:"adds the IP header",l2:"wraps it in a frame (header + checksum)",l1:"sends it as signals"};
+const DEL={app:"receives the data",tls:"decrypts the TLS record",l4:"reads and strips the transport header",l3:"reads and strips the IP header",l2:"checks and strips the frame",l1:"receives the signals"};
+
+function buildPhases(w){
+  const used=LAYERS.filter(k=>w[k]);
+  const P=[];
+  used.forEach((k,i)=>P.push({side:"a",layer:k,env:used.slice(0,i+1),note:`<b>${w.from}</b> · ${LNAME[k][0]} ${ADD[k]}: ${esc(w[k])}`}));
+  if(w.via){
+    P.push({side:"wire1",env:used,note:`On the wire toward ${esc(w.via)}`});
+    const midUsed=used.includes("l3");
+    P.push({side:"m",layer:"l2",env:used.filter(k=>k!=="l1"),note:`<b>Router</b> · receives the frame and strips the link-layer header`});
+    if(midUsed) P.push({side:"m",layer:"l3",env:used.filter(k=>k!=="l1"&&k!=="l2"),
+      note:`<b>Router</b> · reads only the destination IP, looks up the next hop, decrements TTL${w.nat?". The home router also rewrites addresses and ports (NAT)":""}. TCP and above stay closed.`});
+    P.push({side:"m",layer:"l2",env:used.filter(k=>k!=="l1"),note:`<b>Router</b> · builds a new frame for the next link`});
+    P.push({side:"wire2",env:used,note:`On the wire toward ${esc(w.to)}`});
+  } else P.push({side:"wire1",env:used,note:`On the wire, directly to ${esc(w.to)}`});
+  [...used].reverse().forEach((k,i)=>{const env=used.slice(0,used.length-i);P.push({side:"b",layer:k,env,note:`<b>${w.to}</b> · ${LNAME[k][0]} ${DEL[k]}`});});
+  return P;
+}
+function packetHTML(env,w){
+  const has=k=>env.includes(k);
+  let h="";
+  if(has("l2")) h+=`<div class="blk l2">${w.l2.startsWith("ARP")?"ARP frame":"Frame hdr"}<small>MAC addresses</small></div>`;
+  if(has("l3")) h+=`<div class="blk l3">IP hdr<small>src/dst IP · TTL</small></div>`;
+  if(has("l4")) h+=`<div class="blk l4">${w.l4.startsWith("UDP")?"UDP hdr":"TCP hdr"}<small>ports${w.l4.startsWith("UDP")?"":" · seq/ack"}</small></div>`;
+  if(has("tls")) h+=`<div class="blk tls">TLS hdr<small>record type · length</small></div>`;
+  if(has("app")) h+=`<div class="blk app${has("tls")?" enc":""}">${has("tls")?"Encrypted payload":"Payload"}<small>${esc(w.app)}</small></div>`;
+  else if(w.l2&&w.l2.startsWith("ARP")) h+=`<div class="blk none">ARP body<small>who has 192.168.1.1?</small></div>`;
+  else if(has("tls")) h+=`<div class="blk none">Handshake message<small>no application data yet</small></div>`;
+  else h+=`<div class="blk none">No payload<small>control packet only (flags)</small></div>`;
+  if(has("l2")) h+=`<div class="blk l2">FCS<small>checksum</small></div>`;
+  if(has("l1")) h+=`</div><div class="bits">0100 1110 1011 0001 1100 0101 0011 1010 0110 1001 1111 0000 1010 0101 …`;
+  return h;
+}
+const LayerView={
+  label:"Layer stack", short:"What each layer adds",
+  desc:"The same step seen through the network layers. Watch the packet get wrapped on the way down, opened only up to IP by routers, and unwrapped on the way up. The right-hand annotations show where each layer lives on your laptop, which is where a deeper zoom will go later.",
+  render(step,host){
+    const w=step.wire;
+    const head=document.createElement("div");head.className="viz-head";
+    head.innerHTML=`<h2>${w?"Encapsulation for this step":"No packets on the wire in this step"}</h2><span class="hint">${w?"Loops automatically · lit cell = layer at work right now":"Where this step runs inside your laptop"}</span>`;
+    host.appendChild(head);
+    if(!w){
+      const isBrowser=step.st.graph==="browser"||step.b;
+      host.insertAdjacentHTML("beforeend",`<div class="local-box">${esc(step.local||"This step runs inside the browser. It uses data that already arrived, or prepares what will be sent next.")}</div>`);
+      const box=document.createElement("div");box.className="scroll-x";
+      box.innerHTML=`<div class="lstack nomid" style="min-width:520px">`+
+        `<div></div><div class="lh">Your laptop<small>where each layer lives</small></div><div></div><div></div>`+
+        LAYERS.map(k=>`<div class="lname">${LNAME[k][0]}<small>${LNAME[k][1]}</small></div><div class="cell ${(k==="app"&&isBrowser)||(k==="app"&&step.id==="cert")||(step.id==="dns-local"&&(k==="app"))?"lit":""}">${LIVES[k]}</div><div></div><div></div>`).join("")+`</div>`;
+      host.appendChild(box);
+      host.insertAdjacentHTML("beforeend",deeperHTML());
+      return;
+    }
+    const used=LAYERS.filter(k=>w[k]);
+    const mid=!!w.via;
+    const fromLaptop=/laptop/i.test(w.from), toLaptop=/laptop/i.test(w.to);
+    const cell=(side,k)=>{
+      if(!w[k]) return `<div class="cell unused" data-s="${side}" data-k="${k}">not used</div>`;
+      const lives=(side==="a"&&fromLaptop)||(side==="b"&&toLaptop)?`<span class="lives">${LIVES[k]}</span>`:"";
+      return `<div class="cell" data-s="${side}" data-k="${k}">${esc(w[k])}${lives}</div>`;
+    };
+    const midCell=k=>{
+      if(!mid) return `<div></div>`;
+      const relevant=(k==="l1"||k==="l2"||(k==="l3"&&used.includes("l3")));
+      return `<div class="cell mid ${relevant?"":"skip"}" data-s="m" data-k="${k}">${relevant?(k==="l3"?"reads dst IP · TTL−1"+(w.nat?" · NAT":""):k==="l2"?"new frame per hop":"signals in / out"):"not opened"}</div>`;
+    };
+    const box=document.createElement("div");box.className="scroll-x";
+    box.innerHTML=`<div class="lstack${mid?"":" nomid"}">`+
+      `<div></div><div class="lh">${esc(w.from)}<small>sender</small></div><div class="lh">${mid?esc(w.via)+"<small>routers in between</small>":""}</div><div class="lh">${esc(w.to)}<small>receiver</small></div>`+
+      LAYERS.map(k=>`<div class="lname">${LNAME[k][0]}<small>${LNAME[k][1]}</small></div>${cell("a",k)}${midCell(k)}${cell("b",k)}`).join("")+
+      `<div class="wirebar"><span>wire</span><span class="w" id="w1"></span>${mid?`<span>router</span><span class="w" id="w2"></span>`:""}<span>${esc(w.to)}</span></div></div>`;
+    host.appendChild(box);
+    const env=document.createElement("div");env.className="env";
+    env.innerHTML=`<h3>The packet right now</h3><div class="packet" id="pkt"></div><div class="phase-note" id="pnote"></div>`;
+    host.appendChild(env);
+    host.insertAdjacentHTML("beforeend",deeperHTML());
+    const P=buildPhases(w); let i=0;
+    const show=()=>{
+      const p=P[i];
+      box.querySelectorAll(".cell.lit").forEach(c=>c.classList.remove("lit"));
+      box.querySelectorAll(".w").forEach(x=>x.classList.remove("lit"));
+      if(p.side==="wire1"||p.side==="wire2"){const el=box.querySelector("#"+(p.side==="wire1"?"w1":"w2"));if(el){void el.offsetWidth;el.classList.add("lit");}}
+      else{const c=box.querySelector(`.cell[data-s="${p.side}"][data-k="${p.layer}"]`);c&&c.classList.add("lit");}
+      env.querySelector("#pkt").innerHTML=packetHTML(p.env,w);
+      env.querySelector("#pnote").innerHTML=p.note;
+    };
+    show();
+    if(!reduced){const tick=()=>{if(!ANIM.paused){i=(i+1)%P.length;show();}this.timer=setTimeout(tick,i===P.length-1?2000:1000);};this.timer=setTimeout(tick,1000);}
+    else{i=Math.floor(P.length/2);show();}
+  },
+  stop(){clearTimeout(this.timer);}
+};
+function deeperHTML(){return `<div class="deeper"><b>Next zoom level:</b> the grey notes under your laptop's layers show where each one runs. <button type="button" class="btn" data-goto="internals">Open Machine internals</button> to watch the kernel, drivers and hardware at work in this step.</div>`;}
+
+/* ============================================================
+   VIEW 3 · SEQUENCE DIAGRAM
+   ============================================================ */
+const LANES=[["browser","Browser","renderer · net"],["os","OS","stub resolver"],["router","Home router","NAT"],["resolver","Resolver","recursive"],["root","Root","."],["tld",".com TLD","Verisign"],["authns","ns1.google","authoritative"],["edge","Google edge","Maglev · GFE"],["backend","Google backend","web servers"]];
+const GUT=210, LW=100, RH=30, SEQW=GUT+LANES.length*LW+10;
+const laneX=id=>{const i=LANES.findIndex(l=>l[0]===id);return GUT+i*LW+LW/2;};
+const SeqView={
+  label:"Sequence", short:"Who talks to whom, when",
+  desc:"A sequence diagram of the whole journey in one scroll: one column per machine, one arrow per message, with a running clock in the margin. Click any step's band to jump there.",
+  render(step,host){
+    const head=document.createElement("div");head.className="viz-head";
+    head.innerHTML=`<h2>Every message, in order</h2><span class="hint">Past steps solid · current step highlighted · ≈ running time in the margin</span>`;
+    host.appendChild(head);
+    const outer=document.createElement("div");outer.className="seq-outer";host.appendChild(outer);
+    const inner=document.createElement("div");inner.className="seq-inner";outer.appendChild(inner);
+    const hs=S("svg",{viewBox:`0 0 ${SEQW} 46`,width:SEQW,height:46},inner);hs.parentNode.className="seq-inner";
+    S("text",{class:"lane-s",x:12,y:20},hs,"STEP");S("text",{class:"lane-s",x:12,y:36},hs,"≈ TIME SINCE ENTER");
+    LANES.forEach(l=>{const x=laneX(l[0]);S("text",{class:"lane-h",x,y:20,"text-anchor":"middle"},hs,l[1]);S("text",{class:"lane-s",x,y:36,"text-anchor":"middle"},hs,l[2]);});
+    const body=document.createElement("div");body.className="seq-body";inner.appendChild(body);
+    // layout rows
+    let y=8; const blocks=[];
+    STEPS.forEach(s=>{
+      const rows=[];
+      const g=s.b?null:"net";
+      if(s.m&&s.m.length) s.m.forEach(m=>rows.push({type:"msg",from:m[0],to:m[1],label:m[2]}));
+      if(s.note) rows.push({type:"note",lane:s.note.lane,label:s.note.text});
+      if(s.b&&!rows.length) rows.push({type:"note",lane:"browser",label:s.b.map(b=>b[2]).slice(0,1)[0]+(s.b.length>1?" …":"")});
+      if(!rows.length) rows.push({type:"note",lane:"browser",label:s.title});
+      const h=Math.max(2,rows.length)*RH+12;
+      blocks.push({s,y,h,rows}); y+=h;
+    });
+    const H=y+8;
+    const svg=S("svg",{viewBox:`0 0 ${SEQW} ${H}`,width:SEQW,height:H,role:"img","aria-label":"Sequence diagram of all steps"},body);
+    LANES.forEach(l=>S("line",{class:"lifeline",x1:laneX(l[0]),x2:laneX(l[0]),y1:0,y2:H},svg));
+    const layer=S("g",{},null);
+    let flowItems=[], curTop=0;
+    blocks.forEach(B=>{
+      const s=B.s, isCur=s.idx===step.idx;
+      const grp=S("g",{class:"srow"+(s.idx>step.idx?" future":""),style:`--c:${s.st.color}`},svg);
+      const band=S("rect",{class:"band"+(isCur?" cur":""),x:0,y:B.y,width:SEQW,height:B.h},grp);
+      band.addEventListener("click",()=>go(s.idx));
+      S("text",{class:"g-code",x:12,y:B.y+20},grp,s.code);
+      const tt=S("text",{class:"g-title",x:44,y:B.y+20},grp,s.title.length>24?s.title.slice(0,23)+"…":s.title);
+      S("title",{},tt,s.title);
+      S("text",{class:"g-time",x:44,y:B.y+37},grp,`t ≈ ${s.cum} ms`);
+      B.rows.forEach((r,ri)=>{
+        const ry=B.y+ri*RH+26;
+        if(r.type==="msg"){
+          const x1=laneX(r.from),x2=laneX(r.to),dir=x2>x1?1:-1;
+          S("line",{class:"arrow",x1,y1:ry,x2:x2-dir*7,y2:ry},grp);
+          S("polygon",{class:"arrowhead",points:`${x2},${ry} ${x2-dir*9},${ry-5} ${x2-dir*9},${ry+5}`},grp);
+          S("text",{class:"alabel",x:(x1+x2)/2,y:ry-6,"text-anchor":"middle"},grp,r.label);
+          if(isCur) flowItems.push({pts:[[x1,ry],[x2,ry]],label:r.label});
+        } else {
+          const x=laneX(r.lane), w=Math.min(260,r.label.length*6.4+16);
+          const ng=S("g",{class:"snote"},grp);
+          S("rect",{x:x-w/2,y:ry-15,width:w,height:21,rx:5},ng);
+          S("text",{x,y:ry-1,"text-anchor":"middle"},ng,r.label);
+        }
+      });
+      if(isCur) curTop=B.y;
+    });
+    svg.appendChild(layer);
+    layer.setAttribute("style",`--c:${step.st.color}`);
+    this.flow=new Flow(layer,flowItems,{label:false,vbw:SEQW});this.flow.start();
+    body.scrollTop=Math.max(0,curTop-120);
+  },
+  stop(){this.flow&&this.flow.stop();}
+};
+
+/* ============================================================
+   VIEW 4 · CHEAT SHEET
+   ============================================================ */
+const CheatView={
+  label:"Cheat sheet", short:"The whole answer on one page",
+  desc:"A revision sheet for the stage you're in (1 to 6), in the order you'd explain it in an interview. Pick another stage in the bar above. Click any step to open its notes.",
+  render(step,host){
+    const head=document.createElement("div");head.className="viz-head";
+    const si0=STAGES.indexOf(step.st);
+    head.innerHTML=`<h2>Stage ${si0+1} of ${STAGES.length}: ${esc(step.st.name)}</h2><span class="hint">Use the stage bar or arrows to move on · ≈ ${STEPS[STEPS.length-1].cum} ms end to end (illustrative)</span>`;
+    host.appendChild(head);
+    const grid=document.createElement("div");grid.className="cheat";
+    grid.innerHTML=STAGES.map((st,si)=>({st,si})).filter(({st})=>st===step.st).map(({st,si})=>`<div class="ccard" style="--c:${st.color}"><h3>${si+1}. ${esc(st.name)}</h3><p class="q">${esc(st.q)}</p><ol>`+
+      STEPS.filter(s=>s.stage===st.id).map(s=>`<li><button type="button" data-i="${s.idx}" class="${s.idx===step.idx?"cur":""}"><span class="c">${s.code}</span><span><b>${esc(s.title)}</b><span class="sm">${esc(s.sum)}</span></span></button></li>`).join("")+`</ol></div>`).join("");
+    grid.addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(b)go(+b.dataset.i);});
+    host.appendChild(grid);
+  },
+  stop(){}
+};
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+/* ============================================================
+   VIEW 0 · HIGH LEVEL (depth 0)
+   ============================================================ */
+const ICONS={
+  input:g=>{S("rect",{x:-20,y:-17,width:40,height:26,rx:3},g);S("path",{d:"M-26 15 H26 L22 9 H-22 Z"},g);},
+  dns:g=>{S("path",{d:"M0 -13 C-8 -18 -18 -18 -24 -15 V16 C-18 13 -8 13 0 18 C8 13 18 13 24 16 V-15 C18 -18 8 -18 0 -13 Z"},g);S("line",{x1:0,y1:-13,x2:0,y2:18},g);},
+  route:g=>{S("circle",{r:20},g);S("ellipse",{rx:9,ry:20},g);S("line",{x1:-20,y1:0,x2:20,y2:0},g);},
+  conn:g=>{S("rect",{x:-15,y:-4,width:30,height:22,rx:3},g);S("path",{d:"M-9 -4 V-10 A9 9 0 0 1 9 -10 V-4"},g);S("line",{x1:0,y1:4,x2:0,y2:10},g);},
+  http:g=>{[-17,-4,9].forEach(y=>{S("rect",{x:-20,y,width:40,height:11,rx:2},g);S("circle",{class:"fillc",cx:-13,cy:y+5.5,r:1.8},g);});},
+  render:g=>{S("rect",{x:-22,y:-18,width:44,height:30,rx:3},g);S("line",{x1:0,y1:12,x2:0,y2:19},g);S("line",{x1:-10,y1:19,x2:10,y2:19},g);S("polyline",{points:"-16,6 -6,-4 2,3 8,-2 16,6"},g);}
+};
+const HighView={
+  label:"High level", short:"The big picture",
+  desc:"The whole journey in six plain-language stages, for anyone, with no jargon. Use the arrows or click a stage to move along, then switch to Interview depth for the technical detail.",
+  render(step,host){
+    const si=STAGES.indexOf(step.st), X=i=>95+i*162;
+    const head=document.createElement("div");head.className="viz-head";
+    head.innerHTML=`<h2>The journey in six stages</h2><span class="hint">From pressing Enter to seeing Google, in about half a second</span>`;
+    host.appendChild(head);
+    host.insertAdjacentHTML("beforeend",`<p class="hl-summary">Your browser looks up Google's address, sends a request across many networks over a secure line, and draws the reply on your screen.</p>`);
+    const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+    const svg=S("svg",{viewBox:"0 0 1000 200",role:"img","aria-label":`The journey in six stages, now at stage ${si+1}: ${step.st.plain.title}`},box);
+    S("line",{class:"link",x1:X(0),y1:95,x2:X(5),y2:95},svg);
+    S("line",{class:"link hot",x1:X(0),y1:95,x2:X(si),y2:95,style:`--c:${step.st.color}`},svg);
+    STAGES.forEach((st,i)=>{
+      const g=S("g",{class:"station "+(i<si?"past":i===si?"cur":"future"),transform:`translate(${X(i)},95)`,style:`--c:${st.color}`,tabindex:"0",role:"button","aria-label":`Stage ${i+1}: ${st.plain.title}`},svg);
+      S("circle",{class:"st-bg",r:40},g);
+      ICONS[st.id](S("g",{class:"ico"},g));
+      S("text",{class:"st-n",y:-52,"text-anchor":"middle"},g,String(i+1));
+      S("text",{class:"st-l",y:64,"text-anchor":"middle"},g,st.plain.label);
+      S("text",{class:"st-s",y:82,"text-anchor":"middle"},g,st.plain.sub);
+      g.addEventListener("click",()=>goStage(i));
+      g.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();goStage(i);}});
+    });
+    const layer=S("g",{style:`--c:${step.st.color}`},svg);
+    this.flow=new Flow(layer,[{pts:[[X(0),95],[X(si)+0.01,95]],label:step.st.plain.doing}],{vbw:1000});
+    this.flow.start();
+    const cards=document.createElement("div");cards.className="hcards";
+    cards.innerHTML=STAGES.map((st,i)=>`<button type="button" class="hcard${i===si?" cur":""}" style="--c:${st.color}" data-stage-i="${i}"><span class="hn">${i+1}</span><b>${esc(st.plain.title)}</b><span>${esc(st.plain.line)}</span></button>`).join("");
+    cards.addEventListener("click",e=>{const b=e.target.closest("[data-stage-i]");if(b)goStage(+b.dataset.stageI);});
+    host.appendChild(cards);
+  },
+  stop(){this.flow&&this.flow.stop();}
+};
+
+const VIEWS={overview:HighView,map:MapView,layers:LayerView,sequence:SeqView,cheatsheet:CheatView,internals:InternalsView};
+const state={i:0,view:"overview",playing:false,timer:null,lastShallow:"map"};
+function goStage(i){const st=STAGES[i];if(st)go(STEPS.find(s=>s.stage===st.id).idx);}
+function stepBy(d){
+  if(state.view==="overview"){const si=STAGES.indexOf(STEPS[state.i].st)+d;if(si>=0&&si<STAGES.length)goStage(si);}
+  else go(state.i+d);
+}
+function atEnd(){return state.view==="overview"?STEPS[state.i].stage===STAGES[STAGES.length-1].id:state.i>=STEPS.length-1;}
+let activeView=null;
+
+function buildTabs(){
+  const t=document.getElementById("tabs");
+  const tab=k=>`<button class="tab" role="tab" type="button" id="tab-${k}" data-view="${k}" aria-selected="false"><b>${VIEWS[k].label}</b><span>${VIEWS[k].short}</span></button>`;
+  t.innerHTML=tab("overview")
+    +`<div class="tab-group" role="group" aria-label="Interview depth"><span class="tg-label">Interview</span>${["map","layers","sequence","cheatsheet"].map(tab).join("")}</div>`
+    +tab("internals");
+  t.addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view,true);});
+}
+function buildStages(){
+  const el=document.getElementById("stages");
+  el.innerHTML=STAGES.map((st,si)=>`<div class="stage" style="--c:${st.color}" data-stage="${st.id}" role="button" tabindex="0" title="${esc(st.name)}"><span class="nm"><i>${si+1}</i>${esc(st.name)}</span><span class="dots">`+
+    STEPS.filter(s=>s.stage===st.id).map(s=>`<button class="dot" type="button" data-i="${s.idx}" aria-label="Step ${s.code}: ${esc(s.title)}" title="${s.code} ${esc(s.title)}"></button>`).join("")+`</span></div>`).join("");
+  el.addEventListener("click",e=>{
+    const d=e.target.closest(".dot"); if(d){go(+d.dataset.i);return;}
+    const s=e.target.closest(".stage"); if(s){go(STEPS.find(x=>x.stage===s.dataset.stage).idx);}
+  });
+  el.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("stage")){e.preventDefault();go(STEPS.find(x=>x.stage===e.target.dataset.stage).idx);}});
+}
+function renderNotes(s){
+  const n=document.getElementById("notes");
+  n.style.setProperty("--c",s.st.color);
+  if(state.view==="overview"){
+    const p=s.st.plain, si=STAGES.indexOf(s.st);
+    n.innerHTML=`<p class="kicker">Stage ${si+1} of ${STAGES.length} · High level</p><h2>${esc(p.title)}</h2><p class="sum">${esc(p.line)}</p>
+     ${p.text.map(t=>`<p>${esc(t)}</p>`).join("")}
+     <div class="say"><h3>Everyday comparison</h3><p>${esc(p.analogy)}</p></div>
+     <h3>Remember</h3><p>${esc(p.takeaway)}</p>
+     <p class="more">Want the technical version? <button type="button" class="btn" data-goto="${state.lastShallow}">See this stage at Interview depth</button></p>`;
+    n.scrollTop=0; return;
+  }
+  if(state.view==="internals"&&s.deep){
+    n.innerHTML=`<p class="kicker">Step ${s.code} · Machine internals</p><h2>${esc(s.title)}</h2><p class="sum">${esc(s.sum)}</p>
+     <div class="facts">${s.deep.facts.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div>
+     <h3>Under the hood</h3>${s.deep.text.map(p=>`<p>${esc(p)}</p>`).join("")}
+     <div class="say"><h3>Interview answer for this step</h3><p>${esc(s.say)}</p></div>
+     <details><summary>Interview-level notes</summary>${s.body.map(p=>`<p>${esc(p)}</p>`).join("")}</details>
+     <p class="timing">This step ≈ ${s.t} ms · running total ≈ ${s.cum} ms (illustrative)</p>`;
+    n.scrollTop=0; return;
+  }
+  n.innerHTML=`<p class="kicker">Step ${s.code} · ${esc(s.st.name)}</p><h2>${esc(s.title)}</h2><p class="sum">${esc(s.sum)}</p>
+   <div class="facts">${s.facts.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div>
+   ${s.body.map(p=>`<p>${esc(p)}</p>`).join("")}
+   <div class="say"><h3>Say it in the interview</h3><p>${esc(s.say)}</p></div>
+   <h3>Follow-up questions</h3>
+   ${s.probes.map(([q,a])=>`<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join("")}
+   <p class="timing">This step ≈ ${s.t} ms · running total ≈ ${s.cum} ms (illustrative)</p>`;
+  n.scrollTop=0;
+}
+function render(){
+  const s=STEPS[state.i];
+  if(activeView)activeView.stop();
+  const host=document.getElementById("viz");host.innerHTML="";host.style.setProperty("--c",s.st.color);
+  activeView=VIEWS[state.view];activeView.render(s,host);
+  renderNotes(s);
+  document.querySelectorAll(".stage").forEach(el=>el.classList.toggle("cur",el.dataset.stage===s.stage));
+  document.querySelectorAll(".dot").forEach(d=>{const i=+d.dataset.i;d.classList.toggle("cur",i===s.idx);d.classList.toggle("done",i<s.idx);});
+  document.getElementById("counter").textContent=state.view==="overview"?`Stage ${STAGES.indexOf(s.st)+1}/${STAGES.length}`:`${s.code} · ${s.idx+1}/${STEPS.length}`;
+  store.set("e2p-step",String(s.idx));
+}
+function go(i){state.i=Math.max(0,Math.min(STEPS.length-1,i));render();if(state.playing)schedule();}
+function setView(v,push){
+  if(!VIEWS[v])v="overview"; state.view=v;
+  if(v!=="internals"&&v!=="overview")state.lastShallow=v;
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)));
+  document.getElementById("viewdesc").textContent=VIEWS[v].desc;
+  if(push&&location.hash!=="#"+v){try{history.replaceState(null,"","#"+v);}catch(e){location.hash=v;}}
+  render();
+}
+/* Auto-advance: optional tour mode that moves to the next step on a timer (progress bar in the button). */
+function schedule(){
+  clearTimeout(state.timer);
+  const d=state.view==="layers"?16000:12000, b=document.getElementById("auto");
+  b.style.setProperty("--adv",d+"ms");b.classList.remove("on");void b.offsetWidth;b.classList.add("on");
+  state.timer=setTimeout(()=>{if(!atEnd())stepBy(1);else go(0);},d);  /* loops: after the last step, start again at 1 */
+}
+function togglePlay(on){
+  state.playing=on??!state.playing;
+  const b=document.getElementById("auto");b.classList.toggle("on",state.playing);b.setAttribute("aria-pressed",String(state.playing));
+  if(state.playing)schedule();else clearTimeout(state.timer);
+}
+/* Pause animation: freezes packet dots, the layer-stack sequence and CSS animations. */
+function toggleAnim(p){
+  ANIM.paused=p??!ANIM.paused;
+  document.documentElement.classList.toggle("anim-paused",ANIM.paused);
+  const b=document.getElementById("anim");
+  b.textContent=ANIM.paused?"Play animation":"Pause animation";
+  b.setAttribute("aria-pressed",String(ANIM.paused));
+  b.title=ANIM.paused?"Resume the animations (space)":"Pause the animations (space)";
+  store.set("e2p-paused",ANIM.paused?"1":"0");
+}
+
+buildTabs();buildStages();
+document.getElementById("prev").onclick=()=>stepBy(-1);
+document.getElementById("next").onclick=()=>stepBy(1);
+document.getElementById("anim").onclick=()=>toggleAnim();
+document.getElementById("auto").onclick=()=>togglePlay();
+document.addEventListener("click",e=>{const b=e.target.closest("[data-goto]");if(b)setView(b.dataset.goto,true);});
+document.addEventListener("keydown",e=>{
+  if(e.target.closest("input,textarea,select,summary"))return;
+  if(e.key==="ArrowRight"){e.preventDefault();stepBy(1);}
+  else if(e.key==="ArrowLeft"){e.preventDefault();stepBy(-1);}
+  else if(e.key===" "&&!e.target.closest("button,[role=button]")){e.preventDefault();toggleAnim();}
+});
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(VIEWS[v]&&v!==state.view)setView(v,false);});
+const saved=parseInt(store.get("e2p-step"),10); if(!isNaN(saved))state.i=Math.max(0,Math.min(STEPS.length-1,saved));
+setView(VIEWS[location.hash.slice(1)]?location.hash.slice(1):"overview",false);
+toggleAnim(store.get("e2p-paused")==="1");
+</script>
+<script>
+/* Back link to the collection: only on GitHub Pages or a local copy, not on the single published page. */
+(function(){var h=location.hostname;if(location.protocol==="file:"||/\.github\.io$/.test(h)||h==="localhost"){var a=document.querySelector(".home-link");if(a)a.hidden=false;}})();
+</script>
