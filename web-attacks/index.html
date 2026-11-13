@@ -182,6 +182,44 @@ p.subtext{margin:0 0 10px;color:var(--muted);font-size:14px}
 .code div.l.good{background:color-mix(in srgb,var(--good) 16%,transparent);box-shadow:inset 3px 0 0 var(--good)}
 .fixnote{font-size:13.5px;margin:8px 0 0}
 
+/* deep internals */
+.chaincard{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:12px;margin-bottom:12px}
+.chaincard h3{margin:0 0 8px;font-family:var(--font-display);font-size:17px}
+.chain{display:flex;align-items:stretch;gap:6px;overflow-x:auto;padding-bottom:4px}
+.chain .arr{align-self:center;color:var(--muted);font-family:var(--font-mono)}
+.chain .st{flex:1 0 150px;max-width:220px;border:1.5px solid var(--line);border-radius:9px;padding:7px 9px;display:flex;flex-direction:column;gap:2px;background:var(--surface);animation:lit 8.4s infinite both}
+.chain .ta{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.chain .st b{font-family:var(--font-mono);font-size:13px;color:var(--c)}
+.chain .tn{font-size:13px;font-weight:600;line-height:1.3}
+.chain .what{font-size:12.5px;color:var(--muted);line-height:1.35}
+@keyframes lit{0%,100%{border-color:var(--line);box-shadow:none}4%,14%{border-color:var(--c);box-shadow:0 0 0 2px var(--c)}20%{border-color:var(--line);box-shadow:none}}
+.tlegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.tlegend span{display:inline-flex;align-items:center;gap:6px}
+.tlegend i.tk{width:18px;height:12px;padding:0;animation:none}
+.tokcard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.tokcard h3{margin:0;font-family:var(--font-display);font-size:17px}
+.tpl{font-size:13px;color:var(--muted);margin:4px 0 10px}
+.trow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;align-items:center;margin-bottom:6px}
+.trow .tl{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.toks{display:flex;flex-wrap:wrap;gap:4px}
+.tk{display:inline-block;font-family:var(--font-mono);font-size:12.5px;border-radius:5px;padding:3px 7px;border:1.5px solid;animation:tokin 7s infinite both}
+.tk.c{border-color:var(--t4);background:color-mix(in srgb,var(--t4) 14%,var(--surface))}
+.tk.d{border-color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface))}
+.tk.x{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 20%,var(--surface));font-weight:600}
+.tk.dead{border-color:var(--line);border-style:dashed;color:var(--muted);text-decoration:line-through}
+@keyframes tokin{0%{opacity:.15;transform:translateY(4px)}6%{opacity:1;transform:none}90%{opacity:1}100%{opacity:.15}}
+.tnote{font-size:13.5px;margin:8px 0 0}
+.mv-h{fill:var(--ink);font-family:var(--font-display);font-size:16px;font-weight:700}
+.mv-box rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.mv-box.hot rect{stroke:var(--accent);stroke-width:2.5;fill:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.mv-n{fill:var(--muted);font-family:var(--font-mono);font-size:12px;font-weight:600}
+.mv-t{fill:var(--ink);font-family:var(--font-body);font-size:13px}
+.mv-line{fill:none;stroke:var(--line);stroke-width:2}
+.mv-line.new{stroke-dasharray:4 4}
+.mv-line.hot{stroke:var(--accent);stroke-width:3;stroke-dasharray:8 6;animation:flow 1.2s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-14}}
+.mv-l{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px;paint-order:stroke;stroke:var(--surface);stroke-width:4px}
+
 /* compare */
 .ctable{border-collapse:separate;border-spacing:0;width:100%;min-width:720px;font-size:13.5px}
 .ctable th,.ctable td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
@@ -215,7 +253,7 @@ footer p{max-width:92ch;margin:0 0 6px}
   <a class="home-link" href="../" hidden style="display:inline-block;margin-bottom:10px;font-family:var(--font-mono);font-size:12.5px;color:var(--accent);text-decoration:none">&larr; All topics</a>
   <p class="eyebrow">Web attacks and vulnerabilities, side by side</p>
   <h1>Web Attacks Compared<span class="cur">_</span></h1>
-  <p class="lede">Fourteen classic web attacks on a fictional shop, from SQL injection to supply-chain compromise. Pick the ones you want to compare and see them side by side: the flaw, how it's found, the exploit, where the code runs, the damage, and the fix.</p>
+  <p class="lede">Fourteen classic web attacks on a fictional shop, from SQL injection to supply-chain compromise. Pick the ones you want to compare and see them side by side: the flaw, how it's found, the exploit, where the code runs, the damage, and the fix. Then go deeper: ATT&amp;CK chains, parsers, browser rules and cloud metadata.</p>
   <div class="edition"><b>OWASP Top 10:2025</b><span>Category numbers follow the 2025 edition (published November 2025), with the 2021 edition alongside. Content checked November 2026. OWASP revises the list every few years, so a newer edition may renumber these; see owasp.org/Top10.</span></div>
   <div class="legend" aria-label="Colour key: what the attack hits">
     <span style="--c:var(--t1)"><i></i>The server and its data</span><span style="--c:var(--t2)"><i></i>Other users' browsers</span><span style="--c:var(--t3)"><i></i>Systems behind the server</span><span style="--c:var(--t4)"><i></i>Accounts and access</span><span style="--c:var(--t5)"><i></i>Build and supply chain</span>
@@ -751,14 +789,154 @@ const CompareView={
 /* ============================================================
    APP SHELL
    ============================================================ */
-const VIEWS={overview:HighView,side:SideView,request:ReqView,path:PathView,fix:FixView,compare:CompareView};
+/* ============================================================
+   DEPTH 3 · DEEP INTERNALS
+   CHAINS: a typical MITRE ATT&CK path per attack: [tactic, technique ID, technique name, what happens].
+   DEEPT: deep topics. kind "attck" (chains of the selected attacks), "tokens" (how input becomes code),
+   "seq" (actors + rows), "movement" (OWASP 2021 → 2025).
+   ============================================================ */
+const CHAINS={
+ sqli:[["Initial Access","T1190","Exploit Public-Facing Application","SQL injection in the login form"],["Collection","T1005","Data from Local System","dump users and orders through the injection"],["Credential Access","T1110.002","Password Cracking","crack the stolen hashes offline"],["Persistence","T1078","Valid Accounts","log back in with cracked passwords"]],
+ cmdi:[["Initial Access","T1190","Exploit Public-Facing Application","command injection in the ping tool"],["Execution","T1059.004","Unix Shell","run commands as the web server user"],["Persistence","T1505.003","Web Shell","drop a small script for later access"],["Discovery","T1046","Network Service Discovery","scan the internal network"],["Lateral Movement","T1021.004","SSH","move on with keys found on the server"]],
+ xss:[["Initial Access","T1189","Drive-by Compromise","victim views the poisoned product page"],["Credential Access","T1539","Steal Web Session Cookie","script sends the session cookie out"],["Defense Evasion","T1550.004","Web Session Cookie","attacker reuses the cookie, skipping login and MFA"],["Collection","T1185","Browser Session Hijacking","act inside the victim's session"]],
+ idor:[["Initial Access","T1190","Exploit Public-Facing Application","missing ownership check on /orders/:id"],["Collection","T1213","Data from Information Repositories","walk through every order ID"],["Exfiltration","T1020","Automated Exfiltration","a script saves all responses"]],
+ cstuff:[["Credential Access","T1110.004","Credential Stuffing","leaked passwords tried at scale"],["Initial Access","T1078","Valid Accounts","logins that succeed"],["Persistence","T1098","Account Manipulation","change email and phone to lock the owner out"],["Impact","T1657","Financial Theft","spend saved cards and loyalty points"]],
+ csrf:[["Initial Access","T1189","Drive-by Compromise","victim visits evil.example while logged in"],["Persistence","T1098","Account Manipulation","forged request changes the account email"],["Impact","T1531","Account Access Removal","password reset locks the owner out"]],
+ ssrf:[["Initial Access","T1190","Exploit Public-Facing Application","URL preview fetches attacker-chosen addresses"],["Credential Access","T1552.005","Cloud Instance Metadata API","read temporary cloud keys"],["Privilege Escalation","T1078.004","Cloud Accounts","use the keys as the server's cloud role"],["Collection","T1530","Data from Cloud Storage","list and download storage buckets"],["Exfiltration","T1537","Transfer Data to Cloud Account","copy data to the attacker's cloud account"]],
+ traversal:[["Initial Access","T1190","Exploit Public-Facing Application","../ in the download parameter"],["Discovery","T1083","File and Directory Discovery","probe for config files"],["Credential Access","T1552.001","Credentials In Files","database passwords and API keys in config"],["Lateral Movement","T1078","Valid Accounts","log in to other systems with them"]],
+ xxe:[["Initial Access","T1190","Exploit Public-Facing Application","XML import resolves external entities"],["Collection","T1005","Data from Local System","read local files through entities"],["Discovery","T1046","Network Service Discovery","probe internal hosts through the parser"],["Credential Access","T1552.001","Credentials In Files","keys and passwords in readable files"]],
+ deser:[["Initial Access","T1190","Exploit Public-Facing Application","crafted serialised cookie"],["Execution","T1059","Command and Scripting Interpreter","gadget chain runs a command"],["Persistence","T1505.003","Web Shell","keep a way back in"],["Privilege Escalation","T1068","Exploitation for Privilege Escalation","from the app user to root"]],
+ misconfig:[["Initial Access","T1078.001","Default Accounts","admin / admin still works"],["Discovery","T1082","System Information Discovery","versions from debug pages and errors"],["Persistence","T1136","Create Account","add a new admin user"],["Collection","T1005","Data from Local System","export data from the admin panel"]],
+ supply:[["Initial Access","T1195.002","Compromise Software Supply Chain","lookalike or hijacked package"],["Execution","T1059.007","JavaScript","install script runs in the build"],["Credential Access","T1552","Unsecured Credentials","read CI secrets and cloud keys"],["Exfiltration","T1567","Exfiltration Over Web Service","send them to an attacker's server"],["Persistence","T1554","Compromise Host Software Binary","backdoor ships in every release"]],
+ crypto:[["Collection","T1005","Data from Local System","users table stolen via another flaw"],["Credential Access","T1110.002","Password Cracking","fast unsalted hashes cracked on GPUs"],["Initial Access","T1078","Valid Accounts","log in as customers"],["Impact","T1657","Financial Theft","fraud with stored payment data"]],
+ failopen:[["Initial Access","T1190","Exploit Public-Facing Application","malformed token makes the check crash"],["Privilege Escalation","T1078","Valid Accounts","an ordinary account reaches admin pages"],["Collection","T1213","Data from Information Repositories","read reports meant for admins"]]
+};
+const O21=["Broken Access Control","Cryptographic Failures","Injection","Insecure Design","Security Misconfiguration","Vulnerable and Outdated Components","Identification and Authentication Failures","Software and Data Integrity Failures","Security Logging and Monitoring Failures","Server-Side Request Forgery"];
+const O25=["Broken Access Control","Security Misconfiguration","Software Supply Chain Failures","Cryptographic Failures","Injection","Insecure Design","Authentication Failures","Software or Data Integrity Failures","Security Logging and Alerting Failures","Mishandling of Exceptional Conditions"];
+const MOVE=[[0,0],[1,3],[2,4],[3,5],[4,1],[5,2,"broadened"],[6,6,"renamed"],[7,7],[8,8,"renamed"],[9,0,"merged into A01"]];
+const TOKENS=[
+ {lang:"SQL",tpl:"SELECT * FROM users WHERE email = '{input}'",input:"' OR 1=1--",
+  bad:[["SELECT","c"],["*","c"],["FROM","c"],["users","c"],["WHERE","c"],["email","c"],["=","c"],["''","d"],["OR","x"],["1=1","x"],["--","x"],["'","dead"]],
+  good:[["SELECT * FROM users WHERE email = ?","c"],["value: ' OR 1=1--","d"]],
+  note:`The quote in the input ends the string early, so the database's parser reads OR 1=1 as part of the command and -- turns the rest into a comment. With a placeholder, the command is parsed before the value arrives: the whole input stays one string.`},
+ {lang:"Shell",tpl:"ping -c 1 {input}",input:"8.8.8.8; cat /etc/passwd",
+  bad:[["ping","c"],["-c","c"],["1","c"],["8.8.8.8","d"],[";","x"],["cat","x"],["/etc/passwd","x"]],
+  good:[["argv[0]: ping","c"],["argv[1]: -c","c"],["argv[2]: 1","c"],["argv[3]: 8.8.8.8; cat /etc/passwd","d"]],
+  note:`To a shell, ; separates commands. Passed as a list of arguments with no shell involved, the whole input is a single argument to ping, which just fails to resolve it.`},
+ {lang:"HTML",tpl:"<p>{input}</p>",input:"<script>steal()<\/script>",
+  bad:[["<p>","c"],["<script>","x"],["steal()","x"],["<\/script>","x"],["</p>","c"]],
+  good:[["<p>","c"],["&lt;script&gt;steal()&lt;/script&gt;","d"],["</p>","c"]],
+  note:`The browser's HTML parser sees a new script element and runs it. Escaped, the same characters become text that's displayed, not markup that's executed.`}
+];
+const DEEPT=[
+ {id:"attck",title:"From exploit to breach: ATT&CK chains",kind:"attck",
+  sum:`What attackers typically do after each web attack succeeds, in MITRE ATT&CK terms.`,
+  text:[`MITRE ATT&CK catalogues real attacker behaviour. Tactics are the goals (the "why": initial access, credential access, exfiltration…); techniques are the methods (the "how"), each with an ID such as T1190.`,
+   `Most web attacks enter through the same technique, T1190 Exploit Public-Facing Application. What makes them different is what they lead to: XSS leads to stolen sessions, SSRF to cloud keys, command injection to a foothold for moving through the network.`,
+   `These chains are typical examples, not the only path. Technique IDs are from the MITRE ATT&CK Enterprise matrix (attack.mitre.org); like OWASP, ATT&CK is revised over time.`],
+  facts:[`tactics = why`,`techniques = how`,`T1190`,`attack.mitre.org`],
+  say:`OWASP describes the weakness in the application; ATT&CK describes what the attacker does with it, usually starting from T1190 and moving on to credentials, data and other systems.`},
+ {id:"tokens",title:"Injection, one parser at a time",kind:"tokens",
+  sum:`Why injection works: data crosses into the grammar of code. The same idea in SQL, the shell and HTML.`,
+  text:[`Every injection attack targets a parser: the database's SQL parser, the shell, the browser's HTML and JavaScript parsers. The app builds a string meant to contain code plus some data, and the attacker's data contains characters that the parser treats as code.`,
+   `The fix is always the same idea: keep code and data in separate channels. Parameterised queries, argument lists and output escaping make sure the parser sees the input only as data, whatever characters it contains.`,
+   `That's also why filtering "bad characters" is fragile: it tries to guess the parser's rules instead of not giving it the choice.`],
+  facts:[`code vs data`,`parameterisation`,`argument lists`,`context-aware escaping`],
+  say:`Injection happens when untrusted data is parsed as code; the cure is keeping data in a separate channel from the code, such as parameters, argument arrays or escaped output.`},
+ {id:"browser",title:"The browser's security model",kind:"seq",
+  sum:`Same-origin policy, SameSite cookies, CORS, CSP and HttpOnly: the rules that make XSS and CSRF hard, and why they exist.`,
+  actors:[["evil","evil.example","page in a tab"],["br","Browser","enforces the rules"],["shop","shop.example","site and API"]],
+  rows:[["evil","br","fetch('https://shop.example/api/orders')"],["br","=","cross-site: SameSite=Lax cookie not sent"],["br","shop","request without the session"],["shop","br","401 · no Access-Control-Allow-Origin"],["br","=","same-origin policy: evil can't read the reply"],["shop","br","page + CSP: script-src 'self'"],["br","=","injected <script src=evil…> → blocked"],["br","=","HttpOnly: document.cookie hides session"]],
+  text:[`The same-origin policy is the browser's core rule: a page from evil.example can send requests to shop.example, but can't read the responses, unless shop.example opts in with CORS headers.`,
+   `Sending is still the problem behind CSRF, so SameSite cookies limit when the browser attaches cookies to cross-site requests. Lax, now the default in most browsers, blocks them on cross-site form posts and fetches, but not on top-level link clicks.`,
+   `XSS runs inside the site's own origin, so the same-origin policy can't help. Content Security Policy limits which scripts may run at all, and HttpOnly hides the session cookie from JavaScript.`],
+  facts:[`same-origin policy`,`SameSite=Lax`,`CORS`,`CSP`,`HttpOnly`],
+  say:`The same-origin policy stops other sites reading your data, SameSite cookies stop them using your session, and CSP plus HttpOnly limit the damage when XSS runs inside the site itself.`},
+ {id:"waf",title:"How a web application firewall sees a request",kind:"seq",
+  sum:`Pattern matching in front of the app: useful, but not a fix.`,
+  actors:[["att","Attacker",""],["waf","WAF","OWASP Core Rule Set"],["app","Web app","still vulnerable"]],
+  rows:[["att","waf","email=' OR 1=1--"],["waf","=","decode, lowercase, normalise"],["waf","=","rule 942100 (SQLi) matches"],["waf","att","403 Forbidden"],["att","waf","email='/**/oR/**/'a'='a"],["waf","=","anomaly score below threshold?"],["waf","app","passed through"],["app","=","only the code fix stops it now"]],
+  text:[`A WAF inspects each request before it reaches the app. The OWASP Core Rule Set decodes and normalises the input, then runs hundreds of patterns (942xxx rules for SQL injection, 941xxx for XSS, 930xxx for path traversal) and adds up an anomaly score; above the threshold the request is blocked.`,
+   `Attackers vary the payload until it slips under the rules: comments instead of spaces, mixed case, unusual encodings, logically equivalent conditions. Stricter "paranoia levels" catch more but block more legitimate users.`,
+   `A WAF buys time, for example as a virtual patch while the real fix is deployed, and makes logs more useful. It doesn't remove the vulnerability.`],
+  facts:[`OWASP CRS`,`anomaly scoring`,`paranoia levels`,`virtual patching`],
+  say:`A WAF normalises requests and scores them against attack patterns; it's a useful filter and a virtual patch, but obfuscated payloads get through, so the code fix is still required.`},
+ {id:"imds",title:"SSRF and the cloud metadata service",kind:"seq",
+  sum:`Why SSRF in the cloud is so dangerous, and how IMDSv2 defends against it.`,
+  actors:[["att","Attacker",""],["app","Web app","on a cloud VM"],["imds","Metadata service","169.254.169.254"]],
+  rows:[["att","app","url=http://169.254.169.254/…/credentials/role"],["app","imds","IMDSv1: plain GET"],["imds","app","AccessKeyId, SecretAccessKey, Token"],["app","att","keys leaked in the preview"],["app","=","with IMDSv2:"],["app","imds","GET without a session token"],["imds","app","401 Unauthorized"],["imds","=","token needs PUT + header, hop limit 1"]],
+  text:[`Every cloud VM can ask a local metadata service, at the link-local address 169.254.169.254, about itself, including temporary credentials for the VM's cloud role. Any request from the VM is trusted, which is exactly what SSRF provides.`,
+   `AWS IMDSv2 requires a session token first, obtained with a PUT request that carries a special header. An SSRF bug usually lets the attacker choose a URL for a GET, but not the method or headers, so it can't get the token. A hop limit of 1 also stops containers forwarding the request.`,
+   `Azure and Google Cloud take a similar approach with a required header (Metadata: true, Metadata-Flavor: Google). Enforcing IMDSv2 is one of the most effective single cloud hardening steps.`],
+  facts:[`169.254.169.254`,`IMDSv2 session token`,`PUT + header`,`hop limit 1`],
+  say:`SSRF lets an attacker make the server call its cloud metadata service and steal role credentials; IMDSv2's PUT-plus-header token requirement blocks typical GET-only SSRF.`},
+ {id:"depconf",title:"Dependency confusion, step by step",kind:"seq",
+  sum:`How a public package can replace an internal one inside your build.`,
+  actors:[["att","Attacker",""],["pub","Public index","PyPI"],["ci","Build","pip install"],["priv","Private index","company packages"]],
+  rows:[["att","pub","publish shop-internal-utils 99.0.0"],["ci","priv","--extra-index-url: ask private index"],["priv","ci","shop-internal-utils 1.4.0"],["ci","pub","also ask PyPI"],["pub","ci","shop-internal-utils 99.0.0"],["ci","=","pip picks the highest: 99.0.0"],["ci","=","package code runs on install"],["ci","att","CI secrets sent out"]],
+  text:[`In 2021 a researcher showed that dozens of large companies' builds would install public packages that simply reused the names of their internal ones. When a tool looks in several indexes, it often takes the highest version number, wherever it comes from.`,
+   `The attacker only needs the internal name, which often leaks through error messages, public repositories or JavaScript bundles. The package's install hook runs inside the build, with access to its secrets.`,
+   `Fix: use one index (a proxy that serves internal names only from the private source), scoped package names (@shop/utils on npm), hash-pinned requirements (pip --require-hashes, lockfiles), and register your internal names publicly as placeholders.`],
+  facts:[`--extra-index-url`,`highest version wins`,`scoped packages`,`--require-hashes`],
+  say:`Dependency confusion abuses builds that query several registries: a public package with an internal name and higher version gets installed and runs its code in the build.`},
+ {id:"move",title:"OWASP Top 10: 2021 → 2025",kind:"movement",
+  sum:`What moved between the last two editions, with your chosen attacks highlighted.`,
+  text:[`OWASP builds the list from data contributed by testing companies plus a community survey, so it reflects what's being found most often, not a fixed ranking of danger.`,
+   `From 2021 to 2025: Broken Access Control stays first and absorbs SSRF. Security Misconfiguration rises to second. Vulnerable and Outdated Components broadens into Software Supply Chain Failures. Injection drops from third to fifth. Mishandling of Exceptional Conditions is new at tenth.`,
+   `This page uses the 2025 edition (published November 2025). Expect the next edition to move things again; the attacks themselves change far more slowly than their rankings.`],
+  facts:[`data + survey`,`SSRF → A01`,`A03 supply chain`,`A10 new`],
+  say:`The 2025 Top 10 keeps Broken Access Control first (now including SSRF), moves misconfiguration up, widens components into supply-chain failures and adds exceptional-condition handling.`}
+];
+const TROLE={c:"code (the developer's)",d:"data",x:"attacker's input, parsed as code",dead:"commented out, ignored"};
+const DeepView={
+  label:"Deep internals",short:"ATT&CK, parsers, browsers",groups:false,
+  desc:"The next zoom level: ATT&CK chains, how parsers turn input into code, the browser's security model, how firewalls see requests, cloud metadata, dependency confusion and the OWASP 2021 → 2025 changes.",
+  steps(){return ["ATT&CK chains","Parsers","Browser rules","Firewalls","Cloud metadata","Dependency confusion","OWASP 2021 → 2025"];},
+  render(host){
+    const t=DEEPT[state.i];host.style.setProperty("--c","var(--accent)");
+    if(t.kind==="attck"||t.kind==="movement")picker(host);
+    head(host,esc(t.title),esc(t.sum));
+    this.h=null;
+    if(t.kind==="attck"){
+      state.sel.forEach(id=>{const ch=CHAINS[id];
+        host.insertAdjacentHTML("beforeend",`<div class="chaincard" style="--c:${col(id)}"><h3>${esc(A[id].name)}</h3><div class="chain">${ch.map((s,i)=>`${i?'<span class="arr" aria-hidden="true">→</span>':""}<div class="st" style="animation-delay:${(i*1.4).toFixed(1)}s"><span class="ta">${esc(s[0])}</span><b>${esc(s[1])}</b><span class="tn">${esc(s[2])}</span><span class="what">${esc(s[3])}</span></div>`).join("")}</div></div>`);});
+    } else if(t.kind==="tokens"){
+      host.insertAdjacentHTML("beforeend",`<div class="tlegend">${Object.entries(TROLE).map(([k,v])=>`<span><i class="tk ${k}"></i>${esc(v)}</span>`).join("")}</div>`+
+        TOKENS.map(T=>`<div class="tokcard"><h3>${esc(T.lang)}</h3><p class="tpl">template: <code>${esc(T.tpl)}</code> · input: <code>${esc(T.input)}</code></p>
+          <div class="trow"><span class="tl">Concatenated</span><div class="toks">${T.bad.map((k,i)=>`<span class="tk ${k[1]}" style="animation-delay:${(i*.25).toFixed(2)}s">${esc(k[0])}</span>`).join("")}</div></div>
+          <div class="trow"><span class="tl">Separated</span><div class="toks">${T.good.map((k,i)=>`<span class="tk ${k[1]}" style="animation-delay:${(i*.25).toFixed(2)}s">${esc(k[0])}</span>`).join("")}</div></div>
+          <p class="tnote">${esc(T.note)}</p></div>`).join(""));
+    } else if(t.kind==="movement"){
+      const hot25=new Set(state.sel.map(id=>parseInt(A[id].o25.slice(1,3),10)-1)),hot21=new Set(state.sel.map(id=>parseInt(A[id].o21.slice(1,3),10)-1).filter(x=>!isNaN(x)));
+      const W=900,H=560,y=i=>70+i*48,box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+      const svg=S("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"OWASP Top 10 categories, 2021 to 2025"},box);
+      S("text",{class:"mv-h",x:20,y:36},svg,"OWASP Top 10:2021");S("text",{class:"mv-h",x:W-20,y:36,"text-anchor":"end"},svg,"OWASP Top 10:2025");
+      MOVE.forEach(([a,b,lbl])=>{const hot=hot21.has(a)||hot25.has(b);
+        S("path",{class:"mv-line"+(hot?" hot":""),d:`M330 ${y(a)} C 450 ${y(a)}, 450 ${y(b)}, 570 ${y(b)}`},svg);
+        if(lbl)S("text",{class:"mv-l",x:450,y:(y(a)+y(b))/2-6,"text-anchor":"middle"},svg,lbl);});
+      S("path",{class:"mv-line new"+(hot25.has(9)?" hot":""),d:`M470 ${y(9)} L 570 ${y(9)}`},svg);S("text",{class:"mv-l",x:500,y:y(9)-8,"text-anchor":"middle"},svg,"new");
+      O21.forEach((n,i)=>{const g=S("g",{class:"mv-box"+(hot21.has(i)?" hot":"")},svg);S("rect",{x:20,y:y(i)-17,width:310,height:34,rx:7},g);S("text",{class:"mv-n",x:32,y:y(i)+5},g,`A${String(i+1).padStart(2,"0")}`);S("text",{class:"mv-t",x:72,y:y(i)+5},g,n);});
+      O25.forEach((n,i)=>{const g=S("g",{class:"mv-box"+(hot25.has(i)?" hot":"")},svg);S("rect",{x:570,y:y(i)-17,width:310,height:34,rx:7},g);S("text",{class:"mv-n",x:582,y:y(i)+5},g,`A${String(i+1).padStart(2,"0")}`);S("text",{class:"mv-t",x:622,y:y(i)+5},g,n);});
+      host.insertAdjacentHTML("beforeend",`<p class="subtext" style="margin-top:8px">Highlighted: the categories of ${state.sel.map(id=>esc(A[id].short)).join(", ")}. Change the selection in the picker above.</p>`);
+    } else {
+      const d=seqDiagram(t.actors,t.rows,t.title);host.appendChild(d.box);d.flow.start();this.h=d.flow;
+    }
+  },
+  notes(n){const t=DEEPT[state.i];n.style.setProperty("--c","var(--accent)");
+    return `<p class="kicker">Deep internals · ${state.i+1} of ${DEEPT.length}</p><h2>${esc(t.title)}</h2><p class="sum">${esc(t.sum)}</p>
+      <div class="facts">${t.facts.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div>${t.text.map(p=>`<p>${esc(p)}</p>`).join("")}
+      <div class="say"><h3>In one sentence</h3><p>${esc(t.say)}</p></div>`;},
+  stop(){this.h&&this.h.stop();}
+};
+
+const VIEWS={overview:HighView,side:SideView,request:ReqView,path:PathView,fix:FixView,compare:CompareView,deep:DeepView};
 const state={view:"overview",group:"sqlxss",sel:[...PRESETS.sqlxss.a],i:0,pickerOpen:false,playing:false,timer:null};
 let active=null;
 function buildTabs(){
   const t=document.getElementById("tabs");
   const tab=k=>`<button class="tab" role="tab" type="button" id="tab-${k}" data-view="${k}" aria-selected="false"><b>${VIEWS[k].label}</b><span>${VIEWS[k].short}</span></button>`;
   t.innerHTML=tab("overview")+`<div class="tab-group" role="group" aria-label="Interview depth"><span class="tg-label">Interview</span>${["side","request","path","fix","compare"].map(tab).join("")}</div>`
-    +`<button class="tab" type="button" disabled title="Planned next: ATT&CK chains, browser security model (same-origin, cookies, CSP), how firewalls see requests, OWASP 2021 → 2025"><b>Deep internals</b><span>coming next</span></button>`;
+    +tab("deep");
   t.addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view,true);});
 }
 function steps(){return VIEWS[state.view].steps();}
