@@ -2,7 +2,7 @@
 
 What PCs, servers and virtual machines do between pressing the power button and being ready: BIOS vs UEFI, Windows vs Linux vs macOS, boot order rules, disk layouts and timings.
 
-Open `index.html` in a browser, or view it live: https://build-things-that-break-things.github.io/from-enter-to-pixel/boot-sequence/
+Open `index.html` in a browser, or view it live: https://build-things-that-break-things.github.io/from-enter-to-pixels/boot-sequence/
 
 ## How it's organised
 

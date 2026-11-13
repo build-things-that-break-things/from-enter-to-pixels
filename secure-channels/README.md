@@ -2,7 +2,7 @@
 
 How HTTPS, FTPS, SFTP, SCP, SSH tunnels, IPsec, OpenVPN, WireGuard and Tailscale work, and how they compare.
 
-Open `index.html` in a browser, or view it live: https://build-things-that-break-things.github.io/from-enter-to-pixel/secure-channels/
+Open `index.html` in a browser, or view it live: https://build-things-that-break-things.github.io/from-enter-to-pixels/secure-channels/
 
 ## How it's organised
 

@@ -2,7 +2,7 @@
 
 What happens between typing `google.com`, pressing Enter and seeing the page: 6 stages, 26 steps.
 
-Open `index.html` in a browser, or view it live: https://build-things-that-break-things.github.io/from-enter-to-pixel/web-page-load/
+Open `index.html` in a browser, or view it live: https://build-things-that-break-things.github.io/from-enter-to-pixels/web-page-load/
 
 ## Views
 

@@ -4,13 +4,13 @@ A collection of interactive, zoomable explainers. Each one takes a classic "what
 
 Each topic lives in its own subfolder, with a single-file `index.html` you can open directly in a browser.
 
-**View them live:** https://build-things-that-break-things.github.io/from-enter-to-pixel/
+**View them live:** https://build-things-that-break-things.github.io/from-enter-to-pixels/
 
 | Topic | Folder | Live | Question | Status |
 |---|---|---|---|---|
-| Web page load | [`web-page-load/`](web-page-load/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixel/web-page-load/) | What happens when you type google.com and press Enter? | High level, Interview and Machine internals depths |
-| Secure channels | [`secure-channels/`](secure-channels/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixel/secure-channels/) | How do HTTPS, SFTP, SSH tunnels, VPNs and Tailscale work, and which should I use? | High level, Interview and Deep internals depths |
-| Boot sequence | [`boot-sequence/`](boot-sequence/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixel/boot-sequence/) | What happens between the power button and the login screen, on PCs, servers and VMs, including network boot? | High level, Interview and Deep internals depths |
+| Web page load | [`web-page-load/`](web-page-load/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixels/web-page-load/) | What happens when you type google.com and press Enter? | High level, Interview and Machine internals depths |
+| Secure channels | [`secure-channels/`](secure-channels/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixels/secure-channels/) | How do HTTPS, SFTP, SSH tunnels, VPNs and Tailscale work, and which should I use? | High level, Interview and Deep internals depths |
+| Boot sequence | [`boot-sequence/`](boot-sequence/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixels/boot-sequence/) | What happens between the power button and the login screen, on PCs, servers and VMs, including network boot? | High level, Interview and Deep internals depths |
 
 ## Shared conventions
 
