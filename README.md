@@ -11,6 +11,7 @@ Each topic lives in its own subfolder, with a single-file `index.html` you can o
 | Web page load | [`web-page-load/`](web-page-load/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixels/web-page-load/) | What happens when you type google.com and press Enter? | High level, Interview and Machine internals depths |
 | Secure channels | [`secure-channels/`](secure-channels/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixels/secure-channels/) | How do HTTPS, SFTP, SSH tunnels, VPNs and Tailscale work, and which should I use? | High level, Interview and Deep internals depths |
 | Boot sequence | [`boot-sequence/`](boot-sequence/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixels/boot-sequence/) | What happens between the power button and the login screen, on PCs, servers and VMs, including network boot? | High level, Interview and Deep internals depths |
+| Web attacks | [`web-attacks/`](web-attacks/) | [open](https://build-things-that-break-things.github.io/from-enter-to-pixels/web-attacks/) | How do SQL injection, XSS, SSRF and other web attacks differ, and how do you stop them? (OWASP Top 10:2025) | High level and Interview depths; Deep internals planned |
 
 ## Shared conventions
 
