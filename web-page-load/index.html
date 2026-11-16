@@ -191,6 +191,31 @@ h1 .cursor{display:inline-block;width:.09em;height:.8em;background:var(--accent)
 .local-box{border:1px dashed var(--line);border-radius:10px;padding:14px;margin-bottom:12px;font-size:14px}
 
 /* sequence */
+/* where things happen */
+.wh-area rect{fill:color-mix(in srgb,var(--surface-2) 55%,var(--surface));stroke:var(--line);stroke-width:1.5}
+.wh-area.cur rect{fill:color-mix(in srgb,var(--accent) 9%,var(--surface));stroke:var(--accent);stroke-width:2.5}
+.wh-name{fill:var(--ink);font-family:var(--font-display);font-size:14px;font-weight:700}
+.wh-sub{fill:var(--muted);font-family:var(--font-mono);font-size:10px}
+.wh-path{stroke:var(--line);stroke-width:1.5;stroke-dasharray:3 4;opacity:.8}
+.wh-path.done{stroke:var(--c);stroke-dasharray:none;stroke-width:2}  /* opacity set per segment by age */
+.wh-badge{cursor:pointer}
+.wh-badge circle{fill:var(--surface);stroke:var(--c);stroke-width:2}
+.wh-badge.past circle{fill:color-mix(in srgb,var(--c) 22%,var(--surface))}
+.wh-badge.cur circle{fill:var(--c);stroke:var(--ink);stroke-width:3}
+.wh-badge.cur .wh-code{fill:var(--bg)}
+.wh-badge.future{opacity:.6}
+.wh-badge:hover{opacity:1}
+.wh-badge:focus-visible{outline:none}
+.wh-badge:focus-visible circle{stroke:var(--accent);stroke-width:4}
+.wh-code{fill:var(--ink);font-family:var(--font-mono);font-size:10.5px;font-weight:600}
+.wh-lbl{fill:var(--ink);font-family:var(--font-body);font-size:11px;paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+.wh-badge.cur .wh-lbl{font-weight:700}
+.wh-info{margin-top:12px;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 7%,transparent);padding:10px 12px;border-radius:0 8px 8px 0}
+.wh-info p{margin:0 0 8px}
+.wh-chips{display:flex;flex-wrap:wrap;gap:5px}
+.wh-chip{border:1px solid var(--line);border-left:4px solid var(--c);background:var(--surface);border-radius:7px;padding:3px 9px;cursor:pointer;font-size:12.5px;font-family:var(--font-mono)}
+.wh-chip.on{border-color:var(--c);font-weight:600;background:color-mix(in srgb,var(--c) 14%,var(--surface))}
+.wh-count{font-size:12.5px;color:var(--muted);margin:8px 0 0!important}
 .seq-outer{overflow-x:auto}
 .seq-inner{min-width:1100px}
 .seq-body{max-height:560px;overflow-y:auto;border-top:1px solid var(--line)}
@@ -1097,71 +1122,74 @@ const LayerView={
 function deeperHTML(){return `<div class="deeper"><b>Next zoom level:</b> the grey notes under your laptop's layers show where each one runs. <button type="button" class="btn" data-goto="internals">Open Machine internals</button> to watch the kernel, drivers and hardware at work in this step.</div>`;}
 
 /* ============================================================
-   VIEW 3 · SEQUENCE DIAGRAM
+   VIEW 3 · WHERE THINGS HAPPEN
+   A small map of the areas involved. Every step is a numbered badge in the
+   area where it happens; a line joins the badges in order, so the map shows
+   both where the work is done and how data and execution move.
    ============================================================ */
-const LANES=[["browser","Browser","renderer · net"],["os","OS","stub resolver"],["router","Home router","NAT"],["resolver","Resolver","recursive"],["root","Root","."],["tld",".com TLD","Verisign"],["authns","ns1.google","authoritative"],["edge","Google edge","Maglev · GFE"],["backend","Google backend","web servers"]];
-const GUT=210, LW=100, RH=30, SEQW=GUT+LANES.length*LW+10;
-const laneX=id=>{const i=LANES.findIndex(l=>l[0]===id);return GUT+i*LW+LW/2;};
-const SeqView={
-  label:"Sequence", short:"Who talks to whom, when",
-  desc:"A sequence diagram of the whole journey in one scroll: one column per machine, one arrow per message, with a running clock in the margin. Click any step's band to jump there.",
+const AREAS=[
+ {id:"browser",name:"Browser",sub:"UI · network service · renderer · GPU",x:36,y:72,w:280,h:300,
+  text:`Where the request starts and where the page is finally built. The browser process handles the address bar, the network service talks to the network, and a sandboxed renderer turns HTML, CSS and JavaScript into pixels.`},
+ {id:"os",name:"Operating system",sub:"DNS cache · TCP/IP · network card",x:36,y:388,w:280,h:117,
+  text:`The operating system looks up names, wraps data into packets (TCP/IP) and hands them to the Wi-Fi chip, and unwraps the replies.`},
+ {id:"home",name:"Home network",sub:"Wi-Fi router",x:356,y:330,w:150,h:175,
+  text:`Your router is the first hop. It answers ARP, swaps your private address for its public one (NAT) and forwards packets to your provider.`},
+ {id:"isp",name:"ISP and internet",sub:"resolver · routers · BGP",x:526,y:330,w:170,h:175,
+  text:`Your provider runs the recursive DNS resolver and the routers that carry packets hop by hop, steered by BGP, towards Google's network.`},
+ {id:"dns",name:"DNS servers",sub:"root · .com · ns1.google.com",x:356,y:72,w:340,h:200,
+  text:`The DNS hierarchy: root servers, the .com servers and Google's own name servers, asked in turn by your provider's resolver.`},
+ {id:"edge",name:"Google edge",sub:"load balancers · front ends",x:722,y:72,w:258,h:200,
+  text:`A Google site near you. Load balancers pick a front-end server, which completes TCP and TLS and receives your request.`},
+ {id:"dc",name:"Google data center",sub:"web servers · internal services",x:722,y:330,w:258,h:175,
+  text:`Where the page is actually generated, often by many internal services working together.`}
+];
+/* Which area each step happens in, and a short badge label. */
+const WHERE={enter:["browser","Enter"],parse:["browser","URL parse"],cache:["browser","Caches"],
+ "dns-local":["os","Local DNS"],"dns-recursive":["isp","Resolver"],"dns-root":["dns","Root"],"dns-tld":["dns",".com TLD"],"dns-auth":["dns","Google DNS"],"dns-return":["os","Answer cached"],
+ arp:["home","ARP"],nat:["home","NAT"],bgp:["isp","BGP hops"],lb:["edge","Load balancer"],
+ tcp:["edge","TCP"],tls:["edge","TLS"],cert:["browser","Cert check"],
+ request:["edge","GET /"],encap:["os","Encapsulate"],server:["dc","Build page"],response:["browser","200 OK"],
+ "parse-html":["browser","Parse HTML"],subres:["browser","Fetch extras"],"cssom-js":["browser","CSS + JS"],layout:["browser","Layout"],paint:["browser","Paint"],interactive:["browser","Interactive"]};
+function wherePositions(){
+  const pos={};
+  AREAS.forEach(a=>{
+    const list=STEPS.filter(s=>WHERE[s.id][0]===a.id),cols=Math.max(1,Math.floor((a.w-10)/68)),cw=(a.w-10)/cols;
+    list.forEach((s,k)=>{pos[s.id]={x:a.x+5+cw*(k%cols+.5),y:a.y+66+Math.floor(k/cols)*62};});
+  });
+  return pos;
+}
+const WhereView={
+  label:"Where things happen", short:"Areas and flow, in order",
+  desc:"A small map of every place involved, from your browser to Google's data center. Each numbered badge is a step, placed in the area where it happens, and the line joins them in order: where the work is done, and how data and execution travel. Click any badge to jump there.",
   render(step,host){
+    const P=wherePositions(),cur=WHERE[step.id][0],area=AREAS.find(a=>a.id===cur);
     const head=document.createElement("div");head.className="viz-head";
-    head.innerHTML=`<h2>Every message, in order</h2><span class="hint">Past steps solid · current step highlighted · ≈ running time in the margin</span>`;
+    head.innerHTML=`<h2>Where things happen</h2><span class="hint">Badge = step, in the area where it happens · the line follows the order</span>`;
     host.appendChild(head);
-    const outer=document.createElement("div");outer.className="seq-outer";host.appendChild(outer);
-    const inner=document.createElement("div");inner.className="seq-inner";outer.appendChild(inner);
-    const hs=S("svg",{viewBox:`0 0 ${SEQW} 46`,width:SEQW,height:46},inner);hs.parentNode.className="seq-inner";
-    S("text",{class:"lane-s",x:12,y:20},hs,"STEP");S("text",{class:"lane-s",x:12,y:36},hs,"≈ TIME SINCE ENTER");
-    LANES.forEach(l=>{const x=laneX(l[0]);S("text",{class:"lane-h",x,y:20,"text-anchor":"middle"},hs,l[1]);S("text",{class:"lane-s",x,y:36,"text-anchor":"middle"},hs,l[2]);});
-    const body=document.createElement("div");body.className="seq-body";inner.appendChild(body);
-    // layout rows
-    let y=8; const blocks=[];
-    STEPS.forEach(s=>{
-      const rows=[];
-      const g=s.b?null:"net";
-      if(s.m&&s.m.length) s.m.forEach(m=>rows.push({type:"msg",from:m[0],to:m[1],label:m[2]}));
-      if(s.note) rows.push({type:"note",lane:s.note.lane,label:s.note.text});
-      if(s.b&&!rows.length) rows.push({type:"note",lane:"browser",label:s.b.map(b=>b[2]).slice(0,1)[0]+(s.b.length>1?" …":"")});
-      if(!rows.length) rows.push({type:"note",lane:"browser",label:s.title});
-      const h=Math.max(2,rows.length)*RH+12;
-      blocks.push({s,y,h,rows}); y+=h;
-    });
-    const H=y+8;
-    const svg=S("svg",{viewBox:`0 0 ${SEQW} ${H}`,width:SEQW,height:H,role:"img","aria-label":"Sequence diagram of all steps"},body);
-    LANES.forEach(l=>S("line",{class:"lifeline",x1:laneX(l[0]),x2:laneX(l[0]),y1:0,y2:H},svg));
-    const layer=S("g",{},null);
-    let flowItems=[], curTop=0;
-    blocks.forEach(B=>{
-      const s=B.s, isCur=s.idx===step.idx;
-      const grp=S("g",{class:"srow"+(s.idx>step.idx?" future":""),style:`--c:${s.st.color}`},svg);
-      const band=S("rect",{class:"band"+(isCur?" cur":""),x:0,y:B.y,width:SEQW,height:B.h},grp);
-      band.addEventListener("click",()=>go(s.idx));
-      S("text",{class:"g-code",x:12,y:B.y+20},grp,s.code);
-      const tt=S("text",{class:"g-title",x:44,y:B.y+20},grp,s.title.length>24?s.title.slice(0,23)+"…":s.title);
-      S("title",{},tt,s.title);
-      S("text",{class:"g-time",x:44,y:B.y+37},grp,`t ≈ ${s.cum} ms`);
-      B.rows.forEach((r,ri)=>{
-        const ry=B.y+ri*RH+26;
-        if(r.type==="msg"){
-          const x1=laneX(r.from),x2=laneX(r.to),dir=x2>x1?1:-1;
-          S("line",{class:"arrow",x1,y1:ry,x2:x2-dir*7,y2:ry},grp);
-          S("polygon",{class:"arrowhead",points:`${x2},${ry} ${x2-dir*9},${ry-5} ${x2-dir*9},${ry+5}`},grp);
-          S("text",{class:"alabel",x:(x1+x2)/2,y:ry-6,"text-anchor":"middle"},grp,r.label);
-          if(isCur) flowItems.push({pts:[[x1,ry],[x2,ry]],label:r.label});
-        } else {
-          const x=laneX(r.lane), w=Math.min(260,r.label.length*6.4+16);
-          const ng=S("g",{class:"snote"},grp);
-          S("rect",{x:x-w/2,y:ry-15,width:w,height:21,rx:5},ng);
-          S("text",{x,y:ry-1,"text-anchor":"middle"},ng,r.label);
-        }
-      });
-      if(isCur) curTop=B.y;
-    });
-    svg.appendChild(layer);
-    layer.setAttribute("style",`--c:${step.st.color}`);
-    this.flow=new Flow(layer,flowItems,{label:false,vbw:SEQW});this.flow.start();
-    body.scrollTop=Math.max(0,curTop-120);
+    const box=document.createElement("div");box.className="scroll-x";host.appendChild(box);
+    const svg=S("svg",{viewBox:"0 0 1000 530",role:"img","aria-label":`Map of where each step happens; step ${step.code} happens in: ${area.name}`},box);
+    [[20,40,312,480,"Your laptop"],[712,40,278,480,"Google"]].forEach(([x,y,w,h,l])=>{S("rect",{class:"frame",x,y,width:w,height:h,rx:14},svg);S("text",{class:"frame-lbl",x:x+12,y:y+18},svg,l);});
+    AREAS.forEach(a=>{const g=S("g",{class:"wh-area"+(a.id===cur?" cur":"")},svg);
+      S("rect",{x:a.x,y:a.y,width:a.w,height:a.h,rx:10},g);
+      S("text",{class:"wh-name",x:a.x+10,y:a.y+19},g,a.name);S("text",{class:"wh-sub",x:a.x+10,y:a.y+34},g,a.sub);});
+    /* Travelled segments fade with age: steeply over the first two steps back, then slowly down to a faint trace. */
+    const fade=age=>age<=0?.85:age===1?.38:age===2?.18:Math.max(.05,.18*Math.pow(.8,age-2));
+    for(let i=1;i<STEPS.length;i++){const a=P[STEPS[i-1].id],b=P[STEPS[i].id],done=i<=step.idx;
+      S("line",{class:"wh-path"+(done?" done":""),x1:a.x,y1:a.y,x2:b.x,y2:b.y,style:`--c:${STEPS[i].st.color}`+(done?`;opacity:${fade(step.idx-i).toFixed(3)}`:"")},svg);}
+    STEPS.forEach(s=>{const p=P[s.id],st=s.idx<step.idx?"past":s.idx===step.idx?"cur":"future";
+      const g=S("g",{class:"wh-badge "+st,transform:`translate(${p.x},${p.y})`,style:`--c:${s.st.color}`,tabindex:"0",role:"button","aria-label":`Step ${s.code}: ${s.title}`},svg);
+      S("circle",{r:16},g);S("text",{class:"wh-code",y:4,"text-anchor":"middle"},g,s.code);
+      S("text",{class:"wh-lbl",y:31,"text-anchor":"middle"},g,WHERE[s.id][1]);
+      g.addEventListener("click",()=>go(s.idx));
+      g.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();go(s.idx);}});});
+    const layer=S("g",{style:`--c:${step.st.color}`},svg);
+    const prev=step.idx>0?P[STEPS[step.idx-1].id]:null,here=P[step.id];
+    this.flow=new Flow(layer,[{pts:prev?[[prev.x,prev.y],[here.x,here.y]]:[[here.x-40,here.y],[here.x,here.y]],label:step.title}],{vbw:1000});this.flow.start();
+    const inArea=STEPS.filter(s=>WHERE[s.id][0]===cur);
+    host.insertAdjacentHTML("beforeend",`<div class="wh-info" style="--c:${step.st.color}"><p><b>Step ${step.code} happens in: ${esc(area.name)}.</b> ${esc(area.text)}</p>
+      <div class="wh-chips">${inArea.map(s=>`<button type="button" class="wh-chip${s.idx===step.idx?" on":""}" data-where="${s.idx}" style="--c:${s.st.color}">${s.code} ${esc(WHERE[s.id][1])}</button>`).join("")}</div>
+      <p class="wh-count">${inArea.length} of ${STEPS.length} steps happen here.</p></div>`);
+    host.querySelectorAll("[data-where]").forEach(b=>b.addEventListener("click",()=>go(+b.dataset.where)));
   },
   stop(){this.flow&&this.flow.stop();}
 };
@@ -1234,7 +1262,7 @@ const HighView={
   stop(){this.flow&&this.flow.stop();}
 };
 
-const VIEWS={overview:HighView,map:MapView,layers:LayerView,sequence:SeqView,cheatsheet:CheatView,internals:InternalsView};
+const VIEWS={overview:HighView,map:MapView,layers:LayerView,where:WhereView,cheatsheet:CheatView,internals:InternalsView};
 const state={i:0,view:"overview",playing:false,timer:null,lastShallow:"map"};
 function goStage(i){const st=STAGES[i];if(st)go(STEPS.find(s=>s.stage===st.id).idx);}
 function stepBy(d){
@@ -1248,7 +1276,7 @@ function buildTabs(){
   const t=document.getElementById("tabs");
   const tab=k=>`<button class="tab" role="tab" type="button" id="tab-${k}" data-view="${k}" aria-selected="false"><b>${VIEWS[k].label}</b><span>${VIEWS[k].short}</span></button>`;
   t.innerHTML=tab("overview")
-    +`<div class="tab-group" role="group" aria-label="Interview depth"><span class="tg-label">Interview</span>${["map","layers","sequence","cheatsheet"].map(tab).join("")}</div>`
+    +`<div class="tab-group" role="group" aria-label="Interview depth"><span class="tg-label">Interview</span>${["map","layers","where","cheatsheet"].map(tab).join("")}</div>`
     +tab("internals");
   t.addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(b)setView(b.dataset.view,true);});
 }
@@ -1305,6 +1333,7 @@ function render(){
 }
 function go(i){state.i=Math.max(0,Math.min(STEPS.length-1,i));render();if(state.playing)schedule();}
 function setView(v,push){
+  if(v==="sequence")v="where";  /* old links */
   if(!VIEWS[v])v="overview"; state.view=v;
   if(v!=="internals"&&v!=="overview")state.lastShallow=v;
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===v)));
@@ -1347,9 +1376,9 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="ArrowLeft"){e.preventDefault();stepBy(-1);}
   else if(e.key===" "&&!e.target.closest("button,[role=button]")){e.preventDefault();toggleAnim();}
 });
-window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(VIEWS[v]&&v!==state.view)setView(v,false);});
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if((VIEWS[v]||v==="sequence")&&v!==state.view)setView(v,false);});
 const saved=parseInt(store.get("e2p-step"),10); if(!isNaN(saved))state.i=Math.max(0,Math.min(STEPS.length-1,saved));
-setView(VIEWS[location.hash.slice(1)]?location.hash.slice(1):"overview",false);
+setView(location.hash.slice(1)||"overview",false);
 toggleAnim(store.get("e2p-paused")==="1");
 </script>
 <script>

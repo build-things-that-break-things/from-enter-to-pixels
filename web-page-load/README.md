@@ -6,13 +6,13 @@ Open `index.html` in a browser, or view it live: https://build-things-that-break
 
 ## Views
 
-The page has three depths, shown as the row of view tabs from left to right: **High level**, then the outlined **Interview** group (Network map, Layer stack, Sequence, Cheat sheet), then **Machine internals**. All views read the same `STEPS` data, and switching keeps your place. Add `#overview`, `#map`, `#layers`, `#sequence`, `#cheatsheet` or `#internals` to the URL to open a view directly. The page opens on `#overview` by default.
+The page has three depths, shown as the row of view tabs from left to right: **High level**, then the outlined **Interview** group (Network map, Layer stack, Where things happen, Cheat sheet), then **Machine internals**. All views read the same `STEPS` data, and switching keeps your place. Add `#overview`, `#map`, `#layers`, `#where`, `#cheatsheet` or `#internals` to the URL to open a view directly. The page opens on `#overview` by default.
 
 - **High level** (depth 0, the default): six plain-language stages for non-technical readers. Each stage has an animated journey line, an everyday comparison and one thing to remember. The arrows move a whole stage at a time.
 
 - **Network map:** a diagram of every machine involved, with animated packets. Steps that happen only inside the browser zoom into the browser.
 - **Layer stack:** encapsulation per step, showing what each layer adds and where it runs on the laptop.
-- **Sequence:** every message in time order, with a running clock.
+- **Where things happen:** a small map of every area involved (browser, operating system, home network, ISP and internet, DNS servers, Google edge, Google data center). Each step is a numbered badge in the area where it happens, and a line joins them in order, showing where work is done and how data and execution travel. The old `#sequence` link still opens it.
 - **Cheat sheet:** a revision sheet for the current stage (1 to 6) only. The stage bar moves between stages.
 - **Machine internals** (depth 2): the same step inside the laptop. It shows the browser processes, the kernel (sockets, IP, scheduler, drivers) and the hardware (CPU, RAM, Wi-Fi chip, GPU, display). For steps that happen elsewhere, it shows what the laptop does while it waits.
 
